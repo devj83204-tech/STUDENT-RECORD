@@ -233,6 +233,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
 
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
@@ -267,11 +268,12 @@
         async function saveData() { 
             updateLiveVisualCounters();
             if (activeCloudUser) {
+                localStorage.setItem("local_offline_backup_" + activeCloudUser, JSON.stringify(data));
                 try {
                     await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
                     document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
                 } catch (e) {
-                    document.getElementById("cloudStatus").innerText = "⚠️ Sync Error";
+                    document.getElementById("cloudStatus").innerText = "⚠️ Saved Locally (Offline Mode)";
                 }
             }
         }
@@ -285,45 +287,42 @@
         function goHome() { showPage("home"); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        function handleCloudAuth() {
+        async function handleCloudAuth() {
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
-            if(!user || !pass) return;
-            
-            document.getElementById("cloudStatus").innerText = "🔄 Dynamic Authentication Pending...";
-            
-            db.collection("teachers_pwd").doc(user).get()
-                .then((userDoc) => {
-                    if (userDoc.exists) {
-                        let docData = userDoc.data();
-                        if (docData.accountPassword === pass) {
-                            data = docData.schoolData || {};
-                            activeCloudUser = user;
-                            localStorage.setItem("pwdCloudUser", activeCloudUser);
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            goHome();
-                        } else {
-                            alert("❌ Credentials mismatch. Please try again.");
-                            document.getElementById("cloudStatus").innerText = "⚠️ Access Denied";
-                        }
-                    } else {
-                        if (confirm(`User node "${user}" does not exist. Initialize fresh storage matrix?`)) {
-                            db.collection("teachers_pwd").doc(user).set({
-                                accountPassword: pass,
-                                schoolData: {}
-                            }).then(() => {
-                                data = {};
-                                activeCloudUser = user;
-                                localStorage.setItem("pwdCloudUser", activeCloudUser);
-                                document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                                goHome();
-                            });
-                        }
-                    }
-                })
-                .catch((e) => {
-                    alert("Sync Timeout / Internal Error");
+            if(!user || !pass) { alert("Please enter both User ID and Password."); return; }
+            document.getElementById("cloudStatus").innerText = "🔄 Connecting...";
+
+            let localBackup = localStorage.getItem("local_offline_backup_" + user);
+            if(localBackup) { data = JSON.parse(localBackup); }
+
+            try {
+                const userDoc = await db.collection("teachers_pwd").doc(user).get({ source: 'server' }).catch(async () => {
+                    return await db.collection("teachers_pwd").doc(user).get();
                 });
+                if(userDoc && userDoc.exists) {
+                    if(userDoc.data().accountPassword === pass) {
+                        data = userDoc.data().schoolData || {};
+                        localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
+                        successfulLoginConfig(user);
+                    } else {
+                        alert("❌ Incorrect password.");
+                    }
+                } else {
+                    if(confirm(`Create permanent account for "${user}"?`)) {
+                        await db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} });
+                        data = {}; successfulLoginConfig(user);
+                    }
+                }
+            } catch(e) {
+                if(localBackup) { successfulLoginConfig(user); } else { alert("Network Interrupted: " + e.message); }
+            }
+        }
+
+        function successfulLoginConfig(user) {
+            activeCloudUser = user; localStorage.setItem("pwdCloudUser", activeCloudUser);
+            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+            goHome();
         }
 
         function logoutTeacher() {
@@ -333,6 +332,597 @@
 
         function populateSearchDropdown() {
             let select = document.getElementById("searchClassDropdown");
-            if(!select) return;
             select.innerHTML = '<option value="">-- Choose Target Class --</option>';
-            for (let cls 
+            for (let cls in data) {
+                let opt = document.createElement("option"); opt.value = cls; opt.innerText = cls;
+                select.appendChild(opt);
+            }
+        }
+        function clearSearchOutputFields() {
+            document.getElementById("globalSearchResultDisplay").style.display = "none";
+            document.getElementById("searchStudentName").value = "";
+        }
+
+        function executeGlobalStudentSearch() {
+            let targetCls = document.getElementById("searchClassDropdown").value;
+            let targetName = document.getElementById("searchStudentName").value.trim().toLowerCase();
+            let container = document.getElementById("globalSearchResultDisplay");
+
+            if(!targetCls) { alert("Please pick a saved class channel structure."); return; }
+            if(!targetName) { alert("Please specify the student profile name."); return; }
+
+            container.innerHTML = "";
+            let matchFound = false;
+            let reportHtml = `<h4 style='margin:0 0 8px 0; color:#38ef7d;'>Profile Log Analysis for: "${targetName}"</h4>`;
+
+            if(data[targetCls]) {
+                for(let subject in data[targetCls]) {
+                    let subjectHeaderAdded = false;
+                    for(let subsub in data[targetCls][subject]) {
+                        let chapterObj = data[targetCls][subject][subsub];
+                        if(chapterObj && chapterObj.students) {
+                            let match = chapterObj.students.find(s => s.name.toLowerCase() === targetName);
+                            if(match) {
+                                matchFound = true;
+                                if(!subjectHeaderAdded) {
+                                    reportHtml += `<p style='margin:6px 0 2px 0; font-weight:bold; color:#f1c40f;'>📘 Subject: ${subject}</p>`;
+                                    subjectHeaderAdded = true;
+                                }
+                                let today = new Date().toLocaleDateString();
+                                let status = match.dates.includes(today) ? "<span style='color:#2ecc71;'>[VERIFIED TODAY]</span>" : "<span style='color:#e74c3c;'>[PENDING TODAY]</span>";
+                                reportHtml += `<p style='margin:2px 0 2px 12px; font-size:13px;'>📖 Chapter: ${subsub} ➔ Total Clearances: <b>${match.dates.length}</b> ${status}</p>`;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(!matchFound) {
+                container.innerHTML = `<p style='color:#e74c3c; margin:0;'>❌ No profiles matched target identifier within "${targetCls}".</p>`;
+            } else {
+                container.innerHTML = reportHtml;
+            }
+            container.style.display = "block";
+        }
+
+        function addClass() {
+            let name = document.getElementById("newClass").value.trim(); if (!name) return;
+            if (!data[name]) data[name] = {};
+            saveData(); document.getElementById("newClass").value = ""; renderClasses(); populateSearchDropdown();
+        }
+        function renderClasses() {
+            let list = document.getElementById("classList"); list.innerHTML = "";
+            for (let cls in data) {
+                let div = document.createElement("div"); div.className = "icon-box";
+                div.innerHTML = `<span>🏫 <b>${cls}</b></span>`;
+                let del = document.createElement("button"); del.innerText = "🗑 Drop"; del.className = "deleteBtn";
+                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Erase structural node ${cls}?`)) { delete data[cls]; saveData(); renderClasses(); populateSearchDropdown(); } };
+                div.appendChild(del);
+                div.onclick = () => {
+                    currentClass = cls; showPage("subjectPage");
+                    document.getElementById("classTitle").innerText = `Index: ${cls} ➔ Subjects`;
+                    renderSubjects();
+                };
+                list.appendChild(div);
+            }
+        }
+
+        function addSubject() {
+            let name = document.getElementById("newSubject").value.trim(); if (!name) return;
+            if (!data[currentClass][name]) data[currentClass][name] = {};
+            saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
+        }
+        function renderSubjects() {
+            let list = document.getElementById("subjectList"); list.innerHTML = "";
+            for (let sub in data[currentClass]) {
+                let div = document.createElement("div"); div.className = "icon-box";
+                div.innerHTML = `<span>📘 ${sub}</span>`;
+                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
+                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop field ${sub}?`)) { delete data[currentClass][sub]; saveData(); renderSubjects(); } };
+                div.appendChild(del);
+                div.onclick = () => {
+                    currentSubject = sub; showPage("subSubjectPage");
+                    document.getElementById("subjectTitle").innerText = `${currentClass} ➔ ${sub}`;
+                    renderSubSubjects();
+                };
+                list.appendChild(div);
+            }
+        }
+        function backToSubjects() { showPage("subjectPage"); }
+
+        function addSubSubject() {
+            let name = document.getElementById("newSubSubject").value.trim(); if (!name) return;
+            if (!data[currentClass][currentSubject][name]) data[currentClass][currentSubject][name] = { students: [] };
+            saveData(); document.getElementById("newSubSubject").value = ""; renderSubSubjects();
+        }
+        function renderSubSubjects() {
+            let list = document.getElementById("subSubjectList"); list.innerHTML = "";
+            for (let subsub in data[currentClass][currentSubject]) {
+                let div = document.createElement("div"); div.className = "icon-box";
+                div.innerHTML = `<span>📖 ${subsub}</span>`;
+                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
+                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop sub subject segment ${subsub}?`)) { delete data[currentClass][currentSubject][subsub]; saveData(); renderSubSubjects(); } };
+                div.appendChild(del);
+                div.onclick = () => {
+                    currentSubSubject = subsub;
+                    document.getElementById("localSearchInput").value = ""; filterUncheckedOnly = false;
+                    document.getElementById("nestedCalendarBox").style.display = "none";
+                    document.getElementById("rankingBox").style.display = "none";
+                    showPage("studentPage");
+                    document.getElementById("subSubjectTitle").innerText = `${currentClass} ➔ ${currentSubject} ➔ ${currentSubSubject}`;
+                    refreshVirtualScroll();
+                };
+                list.appendChild(div);
+            }
+        }
+        function backToSubSubjects() { showPage("subSubjectPage"); }
+
+        function addStudentsText() {
+            let names = document.getElementById("studentNamesInput").value.split(",");
+            names.forEach(n => {
+                let name = n.trim();
+                if (name) {
+                    let exists = data[currentClass][currentSubject][currentSubSubject].students.some(s => s.name.toLowerCase() === name.toLowerCase());
+                    if(!exists) data[currentClass][currentSubject][currentSubSubject].students.push({ name: name, dates: [] });
+                }
+            });
+            document.getElementById("studentNamesInput").value = ""; saveData(); refreshVirtualScroll();
+        }
+
+        function triggerExcelFileSelector() { document.getElementById("excelHiddenFile").click(); }
+        function processExcelOrCsvUpload(input) {
+            if (input.files && input.files[0]) {
+                let file = input.files[0];
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    let text = e.target.result;
+                    let lines = text.split(/\r?\n/);
+                    let extractedNames = [];
+                    lines.forEach(line => {
+                        let cleaned = line.replace(/["']/g, "").trim();
+                        let columns = cleaned.split(/,|\t/); 
+                        let studentName = columns[0] ? columns[0].trim() : "";
+                        if (studentName && studentName.toLowerCase() !== "name" && studentName.toLowerCase() !== "student name") {
+                            extractedNames.push(studentName);
+                        }
+                    });
+                    if(extractedNames.length === 0) { alert("Could not extract any valid names."); return; }
+                    if(confirm(`Extracted ${extractedNames.length} student names. Add them now?`)) {
+                        extractedNames.forEach(name => {
+                            let exists = data[currentClass][currentSubject][currentSubSubject].students.some(s => s.name.toLowerCase() === name.toLowerCase());
+                            if(!exists) data[currentClass][currentSubject][currentSubSubject].students.push({ name: name, dates: [] });
+                        });
+                        saveData(); refreshVirtualScroll();
+                    }
+                };
+                reader.readAsText(file);
+                input.value = ""; 
+            }
+        }
+
+        function shareReportViaWhatsAppMatrix() {
+            let today = new Date().toLocaleDateString();
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            if(students.length === 0) { alert("No student records exist."); return; }
+            let textBlock = `*📊 Attendance Tracking Log Update*\n\n*Class:* ${currentClass}\n*Subject:* ${currentSubject}\n*Chapter:* ${currentSubSubject}\n*Date:* ${today}\n\n======================\n`;
+            students.forEach((s, idx) => {
+                let verified = s.dates.includes(today) ? "✔️ CHECKED" : "❌ UNCHECKED";
+                textBlock += `${idx + 1}. ${s.name} ➔ ${verified}\n`;
+            });
+            window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(textBlock), '_blank');
+        }
+
+        function calculateStreak(studentName) {
+            let total = 0; let chapters = data[currentClass][currentSubject];
+            for (let ch in chapters) {
+                if (chapters[ch].students) {
+                    let match = chapters[ch].students.find(s => s.name.toLowerCase() === studentName.toLowerCase());
+                    if (match && match.dates && match.dates.length > 0) total++;
+                }
+            }
+            return total;
+        }
+
+        function updateLiveVisualCounters() {
+            if(!currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let today = new Date().toLocaleDateString();
+            let checkedCount = students.filter(s => s.dates.includes(today)).length;
+            document.getElementById("statsChecked").innerText = checkedCount;
+            document.getElementById("statsTotal").innerText = students.length;
+        }
+
+        /* 📱 HYBRID TERMINAL COMPATIBLE PDF DOWNLOAD ENGINE (No App Permissions / No Crash Request) */
+        function savePdfUniversally(doc, filename) {
+            try {
+                // Generates direct standard immutable file binary blob structure
+                let pdfOutput = doc.output('blob');
+                
+                // Pure Blob System Architecture configuration bypasses external system triggers
+                let blobUrl = URL.createObjectURL(pdfOutput);
+                let downloadLink = document.createElement('a');
+                downloadLink.href = blobUrl;
+                downloadLink.download = filename;
+                downloadLink.style.display = 'none';
+                
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                
+                // Continuous garbage cleaner pipeline thread
+                setTimeout(() => {
+                    document.body.removeChild(downloadLink);
+                    URL.revokeObjectURL(blobUrl);
+                }, 400);
+            } catch (err) {
+                // Secondary fallback core action framework
+                doc.save(filename);
+            }
+        }
+
+        /* 📄 GENERATE SINGLE CHAPTER PDF */
+        function generatePremiumTabularPDF() {
+            const { jsPDF } = window.jspdf;
+            let doc = new jsPDF();
+            let today = new Date().toLocaleDateString();
+            
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(18);
+            doc.text(`Attendance Log: ${currentClass}`, 14, 20);
+            doc.setFontSize(12);
+            doc.setFont("Helvetica", "normal");
+            doc.text(`Subject: ${currentSubject} | Chapter: ${currentSubSubject}`, 14, 28);
+            doc.text(`Generation Date: ${today}`, 14, 34);
+            
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let tableRows = [];
+            students.forEach((s, idx) => {
+                let status = s.dates.includes(today) ? "CHECKED" : "UNCHECKED";
+                tableRows.push([idx + 1, s.name, status, s.dates.length]);
+            });
+            
+            doc.autoTable({
+                startY: 40,
+                head: [['S.No', 'Student Name', 'Status (Today)', 'Total Attendance Entries']],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [26, 188, 156] },
+                didParseCell: function (tableData) {
+                    if (tableData.section === 'body' && tableData.column.index === 2) {
+                        if (tableData.cell.raw === 'CHECKED') {
+                            tableData.cell.styles.textColor = [39, 174, 96];
+                            tableData.cell.styles.fontStyle = 'bold';
+                        } else {
+                            tableData.cell.styles.textColor = [192, 57, 43];
+                            tableData.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
+            });
+            
+            savePdfUniversally(doc, `${currentClass}_${currentSubject}_${currentSubSubject}_Report.pdf`.replace(/\s+/g, '_'));
+        }
+
+        /* 📊 MASTER CLASS MULTI-SUBJECT COMPLETE MATRIX PDF */
+        function generateCompleteClassMatrixPDF() {
+            const { jsPDF } = window.jspdf;
+            let doc = new jsPDF('l', 'mm', 'a4'); 
+            let today = new Date().toLocaleDateString();
+            
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(20);
+            doc.text(`🏫 Master Class Performance Matrix: ${currentClass}`, 14, 18);
+            doc.setFontSize(11);
+            doc.setFont("Helvetica", "normal");
+            doc.text(`Generated Date: ${today}`, 14, 25);
+            
+            let allStudentNamesSet = new Set();
+            let allSubjectsMap = data[currentClass] || {};
+            
+            for (let sub in allSubjectsMap) {
+                for (let ch in allSubjectsMap[sub]) {
+                    let chObj = allSubjectsMap[sub][ch];
+                    if(chObj && chObj.students) {
+                        chObj.students.forEach(s => allStudentNamesSet.add(s.name));
+                    }
+                }
+            }
+            
+            let uniqueStudentsList = Array.from(allStudentNamesSet).sort();
+            if(uniqueStudentsList.length === 0) { alert("❌ No student records profiles found in this class."); return; }
+            
+            let headers = ['Student Name'];
+            let trackColumnsKeys = []; 
+            
+            for (let sub in allSubjectsMap) {
+                for (let ch in allSubjectsMap[sub]) {
+                    headers.push(`${sub}\n(${ch})`);
+                    trackColumnsKeys.push({ subject: sub, chapter: ch });
+                }
+            }
+            if(trackColumnsKeys.length === 0) { headers.push('No Active Modules'); }
+            
+            let tableRows = [];
+            uniqueStudentsList.forEach(studentName => {
+                let rowData = [studentName];
+                trackColumnsKeys.forEach(key => {
+                    let chObj = allSubjectsMap[key.subject][key.chapter];
+                    let match = chObj.students.find(s => s.name.toLowerCase() === studentName.toLowerCase());
+                    if(match) {
+                        rowData.push(match.dates.includes(today) ? "CHECKED" : "UNCHECKED");
+                    } else {
+                        rowData.push("-");
+                    }
+                });
+                if(trackColumnsKeys.length === 0) { rowData.push("Create subjects/chapters first"); }
+                tableRows.push(rowData);
+            });
+            
+            doc.autoTable({
+                startY: 32,
+                head: [headers],
+                body: tableRows,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle' },
+                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 9 } },
+                headStyles: { fillColor: [52, 152, 219], textColor: [255, 255, 255] },
+                didParseCell: function (tableData) {
+                    if (tableData.section === 'body' && tableData.column.index > 0) {
+                        if (tableData.cell.raw === 'CHECKED') {
+                            tableData.cell.styles.textColor = [39, 174, 96];
+                            tableData.cell.styles.fontStyle = 'bold';
+                        } else if (tableData.cell.raw === 'UNCHECKED') {
+                            tableData.cell.styles.textColor = [192, 57, 43];
+                            tableData.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
+            });
+            
+            savePdfUniversally(doc, `Master_Matrix_${currentClass}_Report.pdf`.replace(/\s+/g, '_'));
+        }
+
+        /* 📜 ROBUST VIRTUAL SCROLL RENDERING ENGINE */
+        const ROW_HEIGHT = 90; const VIEWPORT_HEIGHT = 460;
+        function refreshVirtualScroll() {
+            let container = document.getElementById("virtual-scroll-viewport");
+            if(!container || !currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
+            
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let searchQuery = document.getElementById("localSearchInput").value.trim().toLowerCase();
+            let today = new Date().toLocaleDateString();
+            
+            filteredStudentsList = students.filter(s => {
+                let matchSearch = s.name.toLowerCase().includes(searchQuery);
+                if(filterUncheckedOnly) return matchSearch && !s.dates.includes(today);
+                return matchSearch;
+            });
+            
+            document.getElementById("virtual-scroll-spacer").style.height = (filteredStudentsList.length * ROW_HEIGHT) + "px";
+            updateVirtualScrollDomNodes();
+        }
+
+        function getLatestCheckedDate(datesArray) {
+            if (!datesArray || datesArray.length === 0) return "N/A";
+            let sorted = [...datesArray].sort((a, b) => new Date(b.split('/').reverse().join('-')) - new Date(a.split('/').reverse().join('-')));
+            return sorted[0];
+        }
+
+        function updateVirtualScrollDomNodes() {
+            let viewport = document.getElementById("virtual-scroll-viewport");
+            let contentBox = document.getElementById("virtual-scroll-content");
+            if(!viewport) return;
+            
+            let scrollTop = viewport.scrollTop;
+            let startIndex = Math.floor(scrollTop / ROW_HEIGHT);
+            let endIndex = Math.min(filteredStudentsList.length - 1, Math.floor((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT));
+            
+            contentBox.style.transform = `translateY(${startIndex * ROW_HEIGHT}px)`;
+            contentBox.innerHTML = "";
+            let today = new Date().toLocaleDateString();
+            
+            for(let i = startIndex; i <= endIndex; i++) {
+                let student = filteredStudentsList[i];
+                let isChecked = student.dates.includes(today);
+                let currentStreak = calculateStreak(student.name);
+                let latestDate = getLatestCheckedDate(student.dates);
+                
+                let row = document.createElement("div");
+                row.className = "student-row";
+                row.style.height = ROW_HEIGHT + "px";
+                row.innerHTML = `
+                    <div class="student-info">
+                        <b>${student.name} <span class="streak-badge">⚡ ${currentStreak}</span></b>
+                        <small>Logs: ${student.dates.length} entries</small>
+                        <small style="color: #f1c40f;">Latest Check: ${latestDate}</small>
+                    </div>
+                    <div class="student-actions">
+                        <button class="${isChecked ? 'checkedBtn' : 'primary'}" onclick="markStudentStatusInline('${student.name}', true)">✔</button>
+                        <button class="${!isChecked ? 'uncheckBtn' : 'primary'}" style="background:${!isChecked ? '#e74c3c':''};" onclick="markStudentStatusInline('${student.name}', false)">✖</button>
+                        <button class="deleteBtn" style="padding:10px;" onclick="deleteStudentProfileInline('${student.name}')">🗑</button>
+                    </div>
+                `;
+                contentBox.appendChild(row);
+            }
+        }
+        document.getElementById("virtual-scroll-viewport").addEventListener("scroll", updateVirtualScrollDomNodes);
+
+        function markStudentStatusInline(name, status) {
+            let today = new Date().toLocaleDateString();
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let student = students.find(s => s.name.toLowerCase() === name.toLowerCase());
+            if(student) {
+                let idx = student.dates.indexOf(today);
+                if(status) {
+                    if(idx === -1) { student.dates.push(today); playSound('check'); }
+                } else {
+                    if(idx !== -1) { student.dates.splice(idx, 1); playSound('uncheck'); }
+                }
+                saveData(); refreshVirtualScroll();
+                if(document.getElementById("rankingBox").style.display === "block") {
+                    renderChapterLeaderboard();
+                }
+            }
+        }
+
+        function deleteStudentProfileInline(name) {
+            if(confirm(`Erase profile logs for ${name}?`)) {
+                let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+                data[currentClass][currentSubject][currentSubSubject].students = students.filter(s => s.name.toLowerCase() !== name.toLowerCase());
+                saveData(); refreshVirtualScroll();
+                if(document.getElementById("rankingBox").style.display === "block") {
+                    renderChapterLeaderboard();
+                }
+            }
+        }
+
+        function toggleUncheckedFilter() {
+            filterUncheckedOnly = !filterUncheckedOnly;
+            let btn = document.getElementById("uncheckFilterBtn");
+            if(filterUncheckedOnly) {
+                btn.innerText = "📋 View Full Roster List";
+                btn.style.background = "#e74c3c"; btn.style.color = "white";
+            } else {
+                btn.innerText = "⚠️ Unchecked Copy List";
+                btn.style.background = "#f1c40f"; btn.style.color = "black";
+            }
+            refreshVirtualScroll();
+        }
+
+        /* 🎙️ VOICE MATRIX FEED ENGINE */
+        function toggleVoiceRecognition() {
+            if(isListening) { stopVoiceEngine(); return; }
+            window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(!window.SpeechRecognition) { alert("Speech recognition not supported inside this browser."); return; }
+            
+            requestHardwareTerminalPermissions();
+            recognition = new window.SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            let statusWidget = document.getElementById("voiceStatus");
+            let voiceBtn = document.getElementById("voiceBtn");
+            
+            recognition.onstart = () => {
+                isListening = true;
+                voiceBtn.innerText = "🛑 Stop Listening Matrix";
+                voiceBtn.className = "voice-btn voice-active";
+                statusWidget.innerText = "🎙️ Listening for student names dynamically...";
+                statusWidget.style.display = "block";
+            };
+            recognition.onresult = (event) => {
+                let lastResultIdx = event.results.length - 1;
+                let textSpoken = event.results[lastResultIdx][0].transcript.trim().toLowerCase();
+                statusWidget.innerText = `Matched Token stream: "${textSpoken}"`;
+                
+                let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+                let today = new Date().toLocaleDateString();
+                let matchFound = false;
+                
+                students.forEach(s => {
+                    if(textSpoken.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(textSpoken)) {
+                        if(!s.dates.includes(today)) { s.dates.push(today); matchFound = true; }
+                    }
+                });
+                if(matchFound) { 
+                    playSound('check'); saveData(); refreshVirtualScroll(); 
+                    if(document.getElementById("rankingBox").style.display === "block") {
+                        renderChapterLeaderboard();
+                    }
+                }
+            };
+            recognition.onerror = () => { stopVoiceEngine(); };
+            recognition.onend = () => { stopVoiceEngine(); };
+            recognition.start();
+        }
+
+        function stopVoiceEngine() {
+            isListening = false;
+            let voiceBtn = document.getElementById("voiceBtn");
+            if(voiceBtn) { voiceBtn.innerText = "🎙️ Voice Verification Matrix"; voiceBtn.className = "voice-btn"; }
+            let statusWidget = document.getElementById("voiceStatus");
+            if(statusWidget) statusWidget.style.display = "none";
+            if(recognition) { recognition.abort(); recognition = null; }
+        }
+
+        /* 📅 HISTORIC CALENDAR WIDGET */
+        function toggleNestedCalendarWidget() {
+            let box = document.getElementById("nestedCalendarBox");
+            if(box.style.display === "block") { box.style.display = "none"; return; }
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let allDatesSet = new Set();
+            students.forEach(s => s.dates.forEach(d => allDatesSet.add(d)));
+            let sortedDates = Array.from(allDatesSet).sort((a,b) => new Date(b) - new Date(a));
+            
+            box.innerHTML = "<h4 style='margin:0 0 10px 0; color:#f1c40f;'>Select Target Log Date Context:</h4>";
+            if(sortedDates.length === 0) {
+                box.innerHTML += "<p style='font-size:13px; opacity:0.7;'>No archived logs discovered.</p>";
+            } else {
+                let select = document.createElement("select");
+                select.innerHTML = "<option value=''>-- Pick Target History Date --</option>";
+                sortedDates.forEach(d => {
+                    let opt = document.createElement("option"); opt.value = d; opt.innerText = d;
+                    select.appendChild(opt);
+                });
+                let outputDiv = document.createElement("div");
+                outputDiv.style.marginTop = "10px"; outputDiv.style.maxHeight = "180px"; outputDiv.style.overflowY = "auto";
+                outputDiv.style.background = "rgba(0,0,0,0.2)"; outputDiv.style.borderRadius = "6px"; outputDiv.style.padding = "8px";
+                
+                select.onchange = () => {
+                    let picked = select.value; if(!picked) { outputDiv.innerHTML = ""; return; }
+                    let checkedNames = []; let uncheckedNames = [];
+                    students.forEach(s => {
+                        if(s.dates.includes(picked)) checkedNames.push(s.name);
+                        else uncheckedNames.push(s.name);
+                    });
+                    outputDiv.innerHTML = `
+                        <p style='margin:2px 0; color:#2ecc71;'><b>✔️ Verified (${checkedNames.length}):</b> ${checkedNames.join(", ") || 'None'}</p>
+                        <p style='margin:8px 0 2px 0; color:#e74c3c;'><b>❌ Pending (${uncheckedNames.length}):</b> ${uncheckedNames.join(", ") || 'None'}</p>
+                    `;
+                };
+                box.appendChild(select); box.appendChild(outputDiv);
+            }
+            box.style.display = "block";
+        }
+
+        /* 🏆 CHAPTER SPECIFIC LEADERBOARD WIDGET */
+        function toggleChapterRankingWidget() {
+            let box = document.getElementById("rankingBox");
+            if(box.style.display === "block") { box.style.display = "none"; return; }
+            renderChapterLeaderboard();
+            box.style.display = "block";
+        }
+
+        function renderChapterLeaderboard() {
+            let box = document.getElementById("rankingBox");
+            if(!box) return;
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            
+            let sortedRanks = students.map(s => {
+                return { name: s.name, points: s.dates.length };
+            }).sort((a,b) => b.points - a.points);
+            
+            box.innerHTML = `<h3 style='margin:0 0 12px 0; color:#f1c40f;'>🏆 Chapter Performance Ranks: ${currentSubSubject}</h3>`;
+            if(sortedRanks.length === 0) {
+                box.innerHTML += "<p style='font-size:13px; opacity:0.8;'>No student records found in this chapter.</p>";
+            } else {
+                sortedRanks.slice(0, 5).forEach((item, idx) => {
+                    let medals = ['🥇', '🥈', '🥉', '✨', '✨'];
+                    box.innerHTML += `<div class='rankItem'>${medals[idx] || '✨'} <b>Rank ${idx+1}: ${item.name}</b> ➔ Copies Checked: <b>${item.points} times</b></div>`;
+                });
+            }
+        }
+
+        window.onload = function() {
+            let savedUser = localStorage.getItem("pwdCloudUser");
+            if (savedUser) {
+                activeCloudUser = savedUser;
+                let localBackup = localStorage.getItem("local_offline_backup_" + activeCloudUser);
+                if(localBackup) data = JSON.parse(localBackup);
+                document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                goHome();
+            }
+        };
+    </script>
+</body>
+</html>
