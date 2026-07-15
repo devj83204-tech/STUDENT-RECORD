@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Student Record App Pro</title>
     
-    <!-- Firebase Legacy Architecture Frameworks -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    
     <!-- Client PDF & AutoTable Components -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -122,10 +118,10 @@
         <div class="center" style="position:relative; z-index:10;">
             <h1 style="font-size:32px; letter-spacing:1px; margin-top:60px; text-shadow:0 4px 10px rgba(0,0,0,0.2);">📚 Student Record App</h1>
             <div class="auth-container">
-                <h2 style="margin-top:0; font-size:20px;">🔐 Cloud Account Gateway</h2>
-                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID">
-                <input type="password" id="teacherPassword" placeholder="Enter Account Password">
-                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:10px;" onclick="handleCloudAuth()">Login / Create Account ➔</button>
+                <h2 style="margin-top:0; font-size:20px;">🔐 Easy Access Gateway</h2>
+                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID (e.g. karan)">
+                <input type="password" id="teacherPassword" placeholder="Enter Account Password (e.g. 1234)">
+                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:10px;" onclick="handleCloudAuth()">Login / Open App ➔</button>
             </div>
         </div>
     </div>
@@ -225,30 +221,52 @@
         </div>
     </div>
 
-    <div id="cloudStatus">☁️ Status Checker Ready</div>
+    <div id="cloudStatus">☁️ Offline Safe Mode Ready</div>
 
-    <!-- 🛠️ APPLICATION CORE LOGIC ENGINE -->
+    <!-- 🛠️ APPLICATION CORE LOGIC ENGINE (NO-CRASH REBUILT) -->
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAB77vRMD9FcIVsHXPU3c8lAsBR0HRLmcY",
-            authDomain: "student-record-app-45ed3.firebaseapp.com",
-            databaseURL: "https://student-record-app-45ed3-default-rtdb.firebaseio.com",
-            projectId: "student-record-app-45ed3",
-            storageBucket: "student-record-app-45ed3.appspot.com",
-            messagingSenderId: "581800549444",
-            appId: "1:581800549444:web:f86cec08754bbb1d58bec5",
-            measurementId: "G-9QJPS5TDWF"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
         let filterUncheckedOnly = false; let filteredStudentsList = [];
         let recognition = null; let isListening = false;
         let activeCloudUser = "";
         let audioCtx = null;
+
+        // Dynamic Firebase Loader safely wrapped to avoid locking the page if blocked
+        let db = null;
+        try {
+            // Hum directly dynamic Script inject kar rahe hain taki login block na ho
+            const script1 = document.createElement('script');
+            script1.src = "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js";
+            document.head.appendChild(script1);
+            
+            script1.onload = () => {
+                const script2 = document.createElement('script');
+                script2.src = "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js";
+                document.head.appendChild(script2);
+                script2.onload = () => {
+                    try {
+                        const firebaseConfig = {
+                            apiKey: "AIzaSyAB77vRMD9FcIVsHXPU3c8lAsBR0HRLmcY",
+                            authDomain: "student-record-app-45ed3.firebaseapp.com",
+                            databaseURL: "https://student-record-app-45ed3-default-rtdb.firebaseio.com",
+                            projectId: "student-record-app-45ed3",
+                            storageBucket: "student-record-app-45ed3.appspot.com",
+                            messagingSenderId: "581800549444",
+                            appId: "1:581800549444:web:f86cec08754bbb1d58bec5",
+                            measurementId: "G-9QJPS5TDWF"
+                        };
+                        firebase.initializeApp(firebaseConfig);
+                        db = firebase.firestore();
+                        document.getElementById("cloudStatus").innerText = "☁️ Connected to Cloud Database";
+                    } catch(e) {
+                        console.log("Firebase Init Failed. Using Offline Mode.");
+                    }
+                }
+            }
+        } catch(e) {
+            console.log("Internet/Firebase unreachable. Working in 100% Offline Mode.");
+        }
 
         function requestHardwareTerminalPermissions() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -276,11 +294,18 @@
         async function saveData() { 
             updateLiveVisualCounters();
             if (activeCloudUser) {
+                // Pehle humesa memory me local save karo taaki data kabhi loss na ho
                 localStorage.setItem("local_offline_backup_" + activeCloudUser, JSON.stringify(data));
-                try {
-                    await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
-                    document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
-                } catch (e) {
+                localStorage.setItem("saved_pass_" + activeCloudUser, document.getElementById("teacherPassword").value || localStorage.getItem("saved_pass_" + activeCloudUser) || "1234");
+                
+                if (db) {
+                    try {
+                        await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
+                        document.getElementById("cloudStatus").innerText = "☁️ Synced with Cloud";
+                    } catch (e) {
+                        document.getElementById("cloudStatus").innerText = "⚠️ Saved Offline (Auto-Sync Pending)";
+                    }
+                } else {
                     document.getElementById("cloudStatus").innerText = "⚠️ Saved Locally (Offline Mode)";
                 }
             }
@@ -295,37 +320,10 @@
         function goHome() { showPage("home"); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        /* 🔄 ROBUST FAILSAFE LOGIN & DIRECT LOCAL BACKUP FALLBACK ENGINE */
+        /* 🔐 INSTANT BYPASS LOGIN - FIREBASE PE DEPENDENT NAHI HAI */
         function handleCloudAuth() {
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
             if(!user || !pass) { alert("Please enter both User ID and Password."); return; }
             
-            document.getElementById("cloudStatus").innerText = "🔄 Connecting...";
-
-            // Check offline storage first in case Firestore network/Webview restricts connection
-            let localBackup = localStorage.getItem("local_offline_backup_" + user);
-
-            db.collection("teachers_pwd").doc(user).get()
-                .then((userDoc) => {
-                    if (userDoc && userDoc.exists) {
-                        let docData = userDoc.data();
-                        if (docData && docData.accountPassword === pass) {
-                            data = docData.schoolData || {};
-                            localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
-                            successfulLoginConfig(user);
-                        } else {
-                            // Password mismatch logic
-                            alert("❌ Incorrect password!");
-                            document.getElementById("cloudStatus").innerText = "⚠️ Password Incorrect";
-                        }
-                    } else {
-                        // User creation flow
-                        if (confirm(`User "${user}" does not exist. Create dynamic node now?`)) {
-                            db.collection("teachers_pwd").doc(user).set({
-                                accountPassword: pass,
-                                schoolData: {}
-                            }).then(() => {
-                                data = {};
-                                localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
-                                s
+            d
