@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Student Record App Pro</title>
     
+    <!-- Firebase Legacy Architecture Frameworks -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
+    <!-- Client PDF & AutoTable Components -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
@@ -111,6 +113,7 @@
 
     <button class="primary modeToggle" onclick="toggleMode()">🌙 / ☀ Mode</button>
 
+    <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
     <div id="login" class="page active">
         <div class="login-bg-effects">
             <div class="circle-effect" style="width:140px; height:140px; top:15%; left:10%;"></div>
@@ -127,6 +130,7 @@
         </div>
     </div>
 
+    <!-- 🏫 SECTION 2: HOMEPAGE DASHBOARD -->
     <div id="home" class="page">
         <div class="center">
             <h1 id="welcomeTitle">Welcome</h1>
@@ -155,10 +159,12 @@
         </div>
     </div>
 
+    <!-- 📘 SECTION 3: SUBJECTS TERMINAL -->
     <div id="subjectPage" class="page">
         <button class="backBtn" onclick="goHome()">⬅ Return to Terminal</button>
         <h2 id="classTitle" style="margin-top: 15px; color:#1abc9c;"></h2>
         
+        <!-- GLOBAL CLASS PDF MATRIX CONTROLLER -->
         <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.2);">
             <h4 style="margin: 0 0 8px 0; color:#f1c40f;">📊 Master Class Report Matrix Generation</h4>
             <button class="pdf-btn" style="background: #9b59b6; font-size: 15px; padding: 12px 24px;" onclick="generateCompleteClassMatrixPDF()">📄 Download Whole Class Master PDF</button>
@@ -171,6 +177,7 @@
         <div class="icon-grid" id="subjectList"></div>
     </div>
 
+    <!-- 📖 SECTION 4: CHAPTERS TERMINAL -->
     <div id="subSubjectPage" class="page">
         <button class="backBtn" onclick="backToSubjects()">⬅ Return to Subjects</button>
         <h2 id="subjectTitle" style="margin-top: 15px; color:#1abc9c;"></h2>
@@ -181,6 +188,7 @@
         <div class="icon-grid" id="subSubjectList"></div>
     </div>
 
+    <!-- 🧑‍🎓 SECTION 5: LIVE ATTENDANCE SHEET -->
     <div id="studentPage" class="page">
         <button class="backBtn" onclick="backToSubSubjects()">⬅ Return to Chapters</button>
         <h2 id="subSubjectTitle" style="margin-top: 15px; word-break: break-all;"></h2>
@@ -219,6 +227,7 @@
 
     <div id="cloudStatus">☁️ Status Checker Ready</div>
 
+    <!-- 🛠️ APPLICATION CORE LOGIC ENGINE -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyAB77vRMD9FcIVsHXPU3c8lAsBR0HRLmcY",
@@ -286,43 +295,37 @@
         function goHome() { showPage("home"); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        /* 🔄 COMPATIBLE ANDROID WEBVIEW + BROWSER STANDARD PROMISE LOGIN ENGINE */
+        /* 🔄 ROBUST FAILSAFE LOGIN & DIRECT LOCAL BACKUP FALLBACK ENGINE */
         function handleCloudAuth() {
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
             if(!user || !pass) { alert("Please enter both User ID and Password."); return; }
+            
             document.getElementById("cloudStatus").innerText = "🔄 Connecting...";
+
+            // Check offline storage first in case Firestore network/Webview restricts connection
+            let localBackup = localStorage.getItem("local_offline_backup_" + user);
 
             db.collection("teachers_pwd").doc(user).get()
                 .then((userDoc) => {
-                    if(userDoc && userDoc.exists) {
-                        if(userDoc.data().accountPassword === pass) {
-                            data = userDoc.data().schoolData || {};
+                    if (userDoc && userDoc.exists) {
+                        let docData = userDoc.data();
+                        if (docData && docData.accountPassword === pass) {
+                            data = docData.schoolData || {};
                             localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
                             successfulLoginConfig(user);
                         } else {
-                            alert("❌ Incorrect password.");
-                            document.getElementById("cloudStatus").innerText = "⚠️ Login Failed";
+                            // Password mismatch logic
+                            alert("❌ Incorrect password!");
+                            document.getElementById("cloudStatus").innerText = "⚠️ Password Incorrect";
                         }
                     } else {
-                        if(confirm(`Create permanent account for "${user}"?`)) {
-                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
-                                .then(() => {
-                                    data = {}; 
-                                    localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
-                                    successfulLoginConfig(user);
-                                });
-                        } else {
-                            document.getElementById("cloudStatus").innerText = "⚠️ Aborted";
-                        }
-                    }
-                })
-                .catch((e) => {
-                    console.log("Fallback check triggered", e);
-                    let localBackup = localStorage.getItem("local_offline_backup_" + user);
-                    if(localBackup) { 
-                        data = JSON.parse(localBackup); 
-                        successfulLoginConfig(user);
-                        document.getElementById("cloudStatus").innerText = "⚠️ Logged in Offline Mode";
-                    } else { 
-                        alert("Network connection error or permission issue. Make sure you are online: " + e.mess
+                        // User creation flow
+                        if (confirm(`User "${user}" does not exist. Create dynamic node now?`)) {
+                            db.collection("teachers_pwd").doc(user).set({
+                                accountPassword: pass,
+                                schoolData: {}
+                            }).then(() => {
+                                data = {};
+                                localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
+                                s
