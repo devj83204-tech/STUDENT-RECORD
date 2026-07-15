@@ -233,7 +233,6 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
 
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
@@ -287,42 +286,43 @@
         function goHome() { showPage("home"); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        /* 🔄 SOLID TWO-WAY CLOUD SYNC LOGIN PROCESS */
-        async function handleCloudAuth() {
+        /* 🔄 COMPATIBLE ANDROID WEBVIEW + BROWSER STANDARD PROMISE LOGIN ENGINE */
+        function handleCloudAuth() {
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
             if(!user || !pass) { alert("Please enter both User ID and Password."); return; }
             document.getElementById("cloudStatus").innerText = "🔄 Connecting...";
 
-            try {
-                // Hamesha server se fresh aur updated data load karein taaki deleted classes cross-device automatically sync ho sakein
-                const userDoc = await db.collection("teachers_pwd").doc(user).get({ source: 'server' }).catch(async () => {
-                    // Fallback to cache/local copy in case of network throttle
-                    return await db.collection("teachers_pwd").doc(user).get();
-                });
-
-                if(userDoc && userDoc.exists) {
-                    if(userDoc.data().accountPassword === pass) {
-                        // SERVER DATA SE LOCAL CACHE KO OVERWRITE KAREIN (Taki deleted nodes overwrite ho sakein)
-                        data = userDoc.data().schoolData || {};
-                        localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
-                        successfulLoginConfig(user);
+            db.collection("teachers_pwd").doc(user).get()
+                .then((userDoc) => {
+                    if(userDoc && userDoc.exists) {
+                        if(userDoc.data().accountPassword === pass) {
+                            data = userDoc.data().schoolData || {};
+                            localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
+                            successfulLoginConfig(user);
+                        } else {
+                            alert("❌ Incorrect password.");
+                            document.getElementById("cloudStatus").innerText = "⚠️ Login Failed";
+                        }
                     } else {
-                        alert("❌ Incorrect password.");
-                        document.getElementById("cloudStatus").innerText = "⚠️ Login Failed";
+                        if(confirm(`Create permanent account for "${user}"?`)) {
+                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
+                                .then(() => {
+                                    data = {}; 
+                                    localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
+                                    successfulLoginConfig(user);
+                                });
+                        } else {
+                            document.getElementById("cloudStatus").innerText = "⚠️ Aborted";
+                        }
                     }
-                } else {
-                    if(confirm(`Create permanent account for "${user}"?`)) {
-                        await db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} });
-                        data = {}; 
-                        localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
+                })
+                .catch((e) => {
+                    console.log("Fallback check triggered", e);
+                    let localBackup = localStorage.getItem("local_offline_backup_" + user);
+                    if(localBackup) { 
+                        data = JSON.parse(localBackup); 
                         successfulLoginConfig(user);
-                    }
-                }
-            } catch(e) {
-                // Internet na hone par offline backup ko treat karein
-                let localBackup = localStorage.getItem("local_offline_backup_" + user);
-                if(localBackup) { 
-                    data = JSON.parse(localBackup); 
-                    successfulLoginConfig(user);
-                    document.getElem
+                        document.getElementById("cloudStatus").innerText = "⚠️ Logged in Offline Mode";
+                    } else { 
+                        alert("Network connection error or permission issue. Make sure you are online: " + e.mess
