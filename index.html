@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Student Record App Pro</title>
+    <title>Student Record App Pro - Realtime Sync</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -233,7 +233,6 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
 
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
@@ -241,6 +240,16 @@
         let recognition = null; let isListening = false;
         let activeCloudUser = "";
         let audioCtx = null;
+        let liveSubscriptionUnsubscribe = null; // Holds Firebase realtime subscription reference
+
+        function getTodayString() {
+            // Devices ka formatting alag hone ki dikkat hatane ke liye hamesha standard YYYY-MM-DD format banayein
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${day}/${month}/${year}`;
+        }
 
         function requestHardwareTerminalPermissions() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -265,15 +274,60 @@
             } catch(e){}
         }
 
+        // REAL-TIME LISTENER FOR MULTI-DEVICE SYNC
+        function setupRealtimeListener(userDocId) {
+            if (liveSubscriptionUnsubscribe) {
+                liveSubscriptionUnsubscribe(); // Clean existing listeners first
+            }
+            
+            document.getElementById("cloudStatus").innerText = "🔄 Establishing Live Sync...";
+            
+            liveSubscriptionUnsubscribe = db.collection("teachers_pwd").doc(userDocId)
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const incomingData = doc.data().schoolData || {};
+                        // Safely replace local data with server-side live data to prevent collision
+                        data = JSON.parse(JSON.stringify(incomingData));
+                        document.getElementById("cloudStatus").innerText = "☁️ Realtime Sync: Active";
+                        
+                        // Live updates triggered instantly in the viewport based on active page
+                        refreshActiveInterfaceViewports();
+                    }
+                }, (error) => {
+                    document.getElementById("cloudStatus").innerText = "⚠️ Sync Error: Retry Log";
+                });
+        }
+
+        function refreshActiveInterfaceViewports() {
+            updateLiveVisualCounters();
+            populateSearchDropdown();
+            
+            // Check dynamically which DOM page is active and re-render only the required component
+            if (document.getElementById("home").classList.contains("active")) {
+                renderClasses();
+            } else if (document.getElementById("subjectPage").classList.contains("active")) {
+                renderSubjects();
+            } else if (document.getElementById("subSubjectPage").classList.contains("active")) {
+                renderSubSubjects();
+            } else if (document.getElementById("studentPage").classList.contains("active")) {
+                refreshVirtualScroll();
+                if(document.getElementById("rankingBox").style.display === "block") {
+                    renderChapterLeaderboard();
+                }
+            }
+        }
+
         async function saveData() { 
             updateLiveVisualCounters();
             if (activeCloudUser) {
-                localStorage.setItem("local_offline_backup_" + activeCloudUser, JSON.stringify(data));
                 try {
-                    await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
+                    // Overwrite instead of `{merge: true}` to enforce hard deletion across multiple device instances
+                    await db.collection("teachers_pwd").doc(activeCloudUser).update({ schoolData: data });
                     document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
                 } catch (e) {
-                    document.getElementById("cloudStatus").innerText = "⚠️ Saved Locally (Offline Mode)";
+                    // Fallback for creating doc if write failed (failsafe)
+                    await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: false });
+                    document.getElementById("cloudStatus").innerText = "☁️ Data Reset Synced";
                 }
             }
         }
@@ -287,57 +341,70 @@
         function goHome() { showPage("home"); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        async function handleCloudAuth() {
+        function handleCloudAuth() {
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
-            if(!user || !pass) { alert("Please enter both User ID and Password."); return; }
-            document.getElementById("cloudStatus").innerText = "🔄 Connecting...";
-
-            let localBackup = localStorage.getItem("local_offline_backup_" + user);
-            if(localBackup) { data = JSON.parse(localBackup); }
-
-            try {
-                const userDoc = await db.collection("teachers_pwd").doc(user).get({ source: 'server' }).catch(async () => {
-                    return await db.collection("teachers_pwd").doc(user).get();
-                });
-                if(userDoc && userDoc.exists) {
-                    if(userDoc.data().accountPassword === pass) {
-                        data = userDoc.data().schoolData || {};
-                        localStorage.setItem("local_offline_backup_" + user, JSON.stringify(data));
-                        successfulLoginConfig(user);
+            if(!user || !pass) return;
+            
+            document.getElementById("cloudStatus").innerText = "🔄 Dynamic Authentication Pending...";
+            
+            db.collection("teachers_pwd").doc(user).get()
+                .then((userDoc) => {
+                    if (userDoc.exists) {
+                        let docData = userDoc.data();
+                        if (docData.accountPassword === pass) {
+                            activeCloudUser = user;
+                            localStorage.setItem("pwdCloudUser", activeCloudUser);
+                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                            
+                            // Initialize Real-time listener immediately
+                            setupRealtimeListener(activeCloudUser);
+                            goHome();
+                        } else {
+                            alert("❌ Credentials mismatch. Please try again.");
+                            document.getElementById("cloudStatus").innerText = "⚠️ Access Denied";
+                        }
                     } else {
-                        alert("❌ Incorrect password.");
+                        if (confirm(`User node "${user}" does not exist. Initialize fresh storage matrix?`)) {
+                            db.collection("teachers_pwd").doc(user).set({
+                                accountPassword: pass,
+                                schoolData: {}
+                            }).then(() => {
+                                activeCloudUser = user;
+                                localStorage.setItem("pwdCloudUser", activeCloudUser);
+                                document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                                setupRealtimeListener(activeCloudUser);
+                                goHome();
+                            });
+                        }
                     }
-                } else {
-                    if(confirm(`Create permanent account for "${user}"?`)) {
-                        await db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} });
-                        data = {}; successfulLoginConfig(user);
-                    }
-                }
-            } catch(e) {
-                if(localBackup) { successfulLoginConfig(user); } else { alert("Network Interrupted: " + e.message); }
-            }
-        }
-
-        function successfulLoginConfig(user) {
-            activeCloudUser = user; localStorage.setItem("pwdCloudUser", activeCloudUser);
-            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-            goHome();
+                })
+                .catch((e) => {
+                    alert("Sync Timeout / Internal Error");
+                });
         }
 
         function logoutTeacher() {
+            if (liveSubscriptionUnsubscribe) {
+                liveSubscriptionUnsubscribe(); // Stop receiving Firestore live feeds on logout
+                liveSubscriptionUnsubscribe = null;
+            }
             localStorage.removeItem("pwdCloudUser"); activeCloudUser = ""; data = {};
             showPage("login");
         }
 
         function populateSearchDropdown() {
             let select = document.getElementById("searchClassDropdown");
+            if(!select) return;
+            let currentSelection = select.value;
             select.innerHTML = '<option value="">-- Choose Target Class --</option>';
             for (let cls in data) {
                 let opt = document.createElement("option"); opt.value = cls; opt.innerText = cls;
+                if(cls === currentSelection) opt.selected = true;
                 select.appendChild(opt);
             }
         }
+        
         function clearSearchOutputFields() {
             document.getElementById("globalSearchResultDisplay").style.display = "none";
             document.getElementById("searchStudentName").value = "";
@@ -368,7 +435,7 @@
                                     reportHtml += `<p style='margin:6px 0 2px 0; font-weight:bold; color:#f1c40f;'>📘 Subject: ${subject}</p>`;
                                     subjectHeaderAdded = true;
                                 }
-                                let today = new Date().toLocaleDateString();
+                                let today = getTodayString();
                                 let status = match.dates.includes(today) ? "<span style='color:#2ecc71;'>[VERIFIED TODAY]</span>" : "<span style='color:#e74c3c;'>[PENDING TODAY]</span>";
                                 reportHtml += `<p style='margin:2px 0 2px 12px; font-size:13px;'>📖 Chapter: ${subsub} ➔ Total Clearances: <b>${match.dates.length}</b> ${status}</p>`;
                             }
@@ -390,6 +457,7 @@
             if (!data[name]) data[name] = {};
             saveData(); document.getElementById("newClass").value = ""; renderClasses(); populateSearchDropdown();
         }
+        
         function renderClasses() {
             let list = document.getElementById("classList"); list.innerHTML = "";
             for (let cls in data) {
@@ -412,6 +480,7 @@
             if (!data[currentClass][name]) data[currentClass][name] = {};
             saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
         }
+        
         function renderSubjects() {
             let list = document.getElementById("subjectList"); list.innerHTML = "";
             for (let sub in data[currentClass]) {
@@ -435,6 +504,7 @@
             if (!data[currentClass][currentSubject][name]) data[currentClass][currentSubject][name] = { students: [] };
             saveData(); document.getElementById("newSubSubject").value = ""; renderSubSubjects();
         }
+        
         function renderSubSubjects() {
             let list = document.getElementById("subSubjectList"); list.innerHTML = "";
             for (let subsub in data[currentClass][currentSubject]) {
@@ -501,7 +571,7 @@
         }
 
         function shareReportViaWhatsAppMatrix() {
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             let students = data[currentClass][currentSubject][currentSubSubject].students || [];
             if(students.length === 0) { alert("No student records exist."); return; }
             let textBlock = `*📊 Attendance Tracking Log Update*\n\n*Class:* ${currentClass}\n*Subject:* ${currentSubject}\n*Chapter:* ${currentSubSubject}\n*Date:* ${today}\n\n======================\n`;
@@ -523,47 +593,47 @@
             return total;
         }
 
+        // Real-Time System Updates
         function updateLiveVisualCounters() {
             if(!currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
             let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             let checkedCount = students.filter(s => s.dates.includes(today)).length;
             document.getElementById("statsChecked").innerText = checkedCount;
             document.getElementById("statsTotal").innerText = students.length;
         }
 
-        /* 📱 HYBRID TERMINAL COMPATIBLE PDF DOWNLOAD ENGINE (No App Permissions / No Crash Request) */
         function savePdfUniversally(doc, filename) {
             try {
-                // Generates direct standard immutable file binary blob structure
                 let pdfOutput = doc.output('blob');
-                
-                // Pure Blob System Architecture configuration bypasses external system triggers
                 let blobUrl = URL.createObjectURL(pdfOutput);
+
+                let rawBase64 = doc.output('datauristring');
+                
                 let downloadLink = document.createElement('a');
-                downloadLink.href = blobUrl;
+                downloadLink.href = rawBase64;
                 downloadLink.download = filename;
                 downloadLink.style.display = 'none';
-                
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 
-                // Continuous garbage cleaner pipeline thread
                 setTimeout(() => {
                     document.body.removeChild(downloadLink);
                     URL.revokeObjectURL(blobUrl);
                 }, 400);
             } catch (err) {
-                // Secondary fallback core action framework
-                doc.save(filename);
+                try {
+                    doc.save(filename);
+                } catch(e) {
+                    alert("Click detected! If download is still stuck, please ensure Storage/Download permission is granted to this app in system settings.");
+                }
             }
         }
 
-        /* 📄 GENERATE SINGLE CHAPTER PDF */
         function generatePremiumTabularPDF() {
             const { jsPDF } = window.jspdf;
             let doc = new jsPDF();
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             
             doc.setFont("Helvetica", "bold");
             doc.setFontSize(18);
@@ -602,11 +672,10 @@
             savePdfUniversally(doc, `${currentClass}_${currentSubject}_${currentSubSubject}_Report.pdf`.replace(/\s+/g, '_'));
         }
 
-        /* 📊 MASTER CLASS MULTI-SUBJECT COMPLETE MATRIX PDF */
         function generateCompleteClassMatrixPDF() {
             const { jsPDF } = window.jspdf;
             let doc = new jsPDF('l', 'mm', 'a4'); 
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             
             doc.setFont("Helvetica", "bold");
             doc.setFontSize(20);
@@ -681,7 +750,6 @@
             savePdfUniversally(doc, `Master_Matrix_${currentClass}_Report.pdf`.replace(/\s+/g, '_'));
         }
 
-        /* 📜 ROBUST VIRTUAL SCROLL RENDERING ENGINE */
         const ROW_HEIGHT = 90; const VIEWPORT_HEIGHT = 460;
         function refreshVirtualScroll() {
             let container = document.getElementById("virtual-scroll-viewport");
@@ -689,7 +757,7 @@
             
             let students = data[currentClass][currentSubject][currentSubSubject].students || [];
             let searchQuery = document.getElementById("localSearchInput").value.trim().toLowerCase();
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             
             filteredStudentsList = students.filter(s => {
                 let matchSearch = s.name.toLowerCase().includes(searchQuery);
@@ -718,7 +786,7 @@
             
             contentBox.style.transform = `translateY(${startIndex * ROW_HEIGHT}px)`;
             contentBox.innerHTML = "";
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             
             for(let i = startIndex; i <= endIndex; i++) {
                 let student = filteredStudentsList[i];
@@ -747,7 +815,7 @@
         document.getElementById("virtual-scroll-viewport").addEventListener("scroll", updateVirtualScrollDomNodes);
 
         function markStudentStatusInline(name, status) {
-            let today = new Date().toLocaleDateString();
+            let today = getTodayString();
             let students = data[currentClass][currentSubject][currentSubSubject].students || [];
             let student = students.find(s => s.name.toLowerCase() === name.toLowerCase());
             if(student) {
@@ -788,7 +856,6 @@
             refreshVirtualScroll();
         }
 
-        /* 🎙️ VOICE MATRIX FEED ENGINE */
         function toggleVoiceRecognition() {
             if(isListening) { stopVoiceEngine(); return; }
             window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -816,7 +883,7 @@
                 statusWidget.innerText = `Matched Token stream: "${textSpoken}"`;
                 
                 let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-                let today = new Date().toLocaleDateString();
+                let today = getTodayString();
                 let matchFound = false;
                 
                 students.forEach(s => {
@@ -845,7 +912,6 @@
             if(recognition) { recognition.abort(); recognition = null; }
         }
 
-        /* 📅 HISTORIC CALENDAR WIDGET */
         function toggleNestedCalendarWidget() {
             let box = document.getElementById("nestedCalendarBox");
             if(box.style.display === "block") { box.style.display = "none"; return; }
@@ -885,7 +951,6 @@
             box.style.display = "block";
         }
 
-        /* 🏆 CHAPTER SPECIFIC LEADERBOARD WIDGET */
         function toggleChapterRankingWidget() {
             let box = document.getElementById("rankingBox");
             if(box.style.display === "block") { box.style.display = "none"; return; }
@@ -917,9 +982,8 @@
             let savedUser = localStorage.getItem("pwdCloudUser");
             if (savedUser) {
                 activeCloudUser = savedUser;
-                let localBackup = localStorage.getItem("local_offline_backup_" + activeCloudUser);
-                if(localBackup) data = JSON.parse(localBackup);
                 document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                setupRealtimeListener(activeCloudUser);
                 goHome();
             }
         };
