@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Student Record App Pro - Realtime Sync</title>
     
+    <!-- Firebase Legacy Architecture Frameworks -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
+    <!-- Client PDF & AutoTable Components -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
@@ -111,6 +113,7 @@
 
     <button class="primary modeToggle" onclick="toggleMode()">🌙 / ☀ Mode</button>
 
+    <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
     <div id="login" class="page active">
         <div class="login-bg-effects">
             <div class="circle-effect" style="width:140px; height:140px; top:15%; left:10%;"></div>
@@ -127,6 +130,7 @@
         </div>
     </div>
 
+    <!-- 🏫 SECTION 2: HOMEPAGE DASHBOARD -->
     <div id="home" class="page">
         <div class="center">
             <h1 id="welcomeTitle">Welcome</h1>
@@ -155,10 +159,12 @@
         </div>
     </div>
 
+    <!-- 📘 SECTION 3: SUBJECTS TERMINAL -->
     <div id="subjectPage" class="page">
         <button class="backBtn" onclick="goHome()">⬅ Return to Terminal</button>
         <h2 id="classTitle" style="margin-top: 15px; color:#1abc9c;"></h2>
         
+        <!-- GLOBAL CLASS PDF MATRIX CONTROLLER -->
         <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.2);">
             <h4 style="margin: 0 0 8px 0; color:#f1c40f;">📊 Master Class Report Matrix Generation</h4>
             <button class="pdf-btn" style="background: #9b59b6; font-size: 15px; padding: 12px 24px;" onclick="generateCompleteClassMatrixPDF()">📄 Download Whole Class Master PDF</button>
@@ -171,6 +177,7 @@
         <div class="icon-grid" id="subjectList"></div>
     </div>
 
+    <!-- 📖 SECTION 4: CHAPTERS TERMINAL -->
     <div id="subSubjectPage" class="page">
         <button class="backBtn" onclick="backToSubjects()">⬅ Return to Subjects</button>
         <h2 id="subjectTitle" style="margin-top: 15px; color:#1abc9c;"></h2>
@@ -181,6 +188,7 @@
         <div class="icon-grid" id="subSubjectList"></div>
     </div>
 
+    <!-- 🧑‍🎓 SECTION 5: LIVE ATTENDANCE SHEET -->
     <div id="studentPage" class="page">
         <button class="backBtn" onclick="backToSubSubjects()">⬅ Return to Chapters</button>
         <h2 id="subSubjectTitle" style="margin-top: 15px; word-break: break-all;"></h2>
@@ -219,6 +227,7 @@
 
     <div id="cloudStatus">☁️ Status Checker Ready</div>
 
+    <!-- 🛠️ APPLICATION CORE LOGIC ENGINE -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyAB77vRMD9FcIVsHXPU3c8lAsBR0HRLmcY",
@@ -240,10 +249,10 @@
         let recognition = null; let isListening = false;
         let activeCloudUser = "";
         let audioCtx = null;
-        let liveSubscriptionUnsubscribe = null; // Holds Firebase realtime subscription reference
+        let liveSubscriptionUnsubscribe = null;
 
+        // FIXED DATE STANDARD - Ab hamesha har system par DD/MM/YYYY hi generate hoga bina kisi browser dependency ke
         function getTodayString() {
-            // Devices ka formatting alag hone ki dikkat hatane ke liye hamesha standard YYYY-MM-DD format banayein
             const d = new Date();
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -274,10 +283,9 @@
             } catch(e){}
         }
 
-        // REAL-TIME LISTENER FOR MULTI-DEVICE SYNC
         function setupRealtimeListener(userDocId) {
             if (liveSubscriptionUnsubscribe) {
-                liveSubscriptionUnsubscribe(); // Clean existing listeners first
+                liveSubscriptionUnsubscribe();
             }
             
             document.getElementById("cloudStatus").innerText = "🔄 Establishing Live Sync...";
@@ -286,11 +294,8 @@
                 .onSnapshot((doc) => {
                     if (doc.exists) {
                         const incomingData = doc.data().schoolData || {};
-                        // Safely replace local data with server-side live data to prevent collision
                         data = JSON.parse(JSON.stringify(incomingData));
                         document.getElementById("cloudStatus").innerText = "☁️ Realtime Sync: Active";
-                        
-                        // Live updates triggered instantly in the viewport based on active page
                         refreshActiveInterfaceViewports();
                     }
                 }, (error) => {
@@ -302,7 +307,6 @@
             updateLiveVisualCounters();
             populateSearchDropdown();
             
-            // Check dynamically which DOM page is active and re-render only the required component
             if (document.getElementById("home").classList.contains("active")) {
                 renderClasses();
             } else if (document.getElementById("subjectPage").classList.contains("active")) {
@@ -321,11 +325,9 @@
             updateLiveVisualCounters();
             if (activeCloudUser) {
                 try {
-                    // Overwrite instead of `{merge: true}` to enforce hard deletion across multiple device instances
                     await db.collection("teachers_pwd").doc(activeCloudUser).update({ schoolData: data });
                     document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
                 } catch (e) {
-                    // Fallback for creating doc if write failed (failsafe)
                     await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: false });
                     document.getElementById("cloudStatus").innerText = "☁️ Data Reset Synced";
                 }
@@ -357,7 +359,6 @@
                             localStorage.setItem("pwdCloudUser", activeCloudUser);
                             document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
                             
-                            // Initialize Real-time listener immediately
                             setupRealtimeListener(activeCloudUser);
                             goHome();
                         } else {
@@ -386,7 +387,7 @@
 
         function logoutTeacher() {
             if (liveSubscriptionUnsubscribe) {
-                liveSubscriptionUnsubscribe(); // Stop receiving Firestore live feeds on logout
+                liveSubscriptionUnsubscribe();
                 liveSubscriptionUnsubscribe = null;
             }
             localStorage.removeItem("pwdCloudUser"); activeCloudUser = ""; data = {};
@@ -593,7 +594,6 @@
             return total;
         }
 
-        // Real-Time System Updates
         function updateLiveVisualCounters() {
             if(!currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
             let students = data[currentClass][currentSubject][currentSubSubject].students || [];
@@ -625,7 +625,7 @@
                 try {
                     doc.save(filename);
                 } catch(e) {
-                    alert("Click detected! If download is still stuck, please ensure Storage/Download permission is granted to this app in system settings.");
+                    alert("Download limit reached! Make sure storage permissions are active.");
                 }
             }
         }
