@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Student Record App Pro - Realtime Sync</title>
     
-    <!-- Firebase Legacy Architecture Frameworks -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
-    <!-- Client PDF & AutoTable Components -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
@@ -113,7 +111,6 @@
 
     <button class="primary modeToggle" onclick="toggleMode()">🌙 / ☀ Mode</button>
 
-    <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
     <div id="login" class="page active">
         <div class="login-bg-effects">
             <div class="circle-effect" style="width:140px; height:140px; top:15%; left:10%;"></div>
@@ -130,7 +127,6 @@
         </div>
     </div>
 
-    <!-- 🏫 SECTION 2: HOMEPAGE DASHBOARD -->
     <div id="home" class="page">
         <div class="center">
             <h1 id="welcomeTitle">Welcome</h1>
@@ -159,15 +155,13 @@
         </div>
     </div>
 
-    <!-- 📘 SECTION 3: SUBJECTS TERMINAL -->
     <div id="subjectPage" class="page">
         <button class="backBtn" onclick="goHome()">⬅ Return to Terminal</button>
         <h2 id="classTitle" style="margin-top: 15px; color:#1abc9c;"></h2>
         
-        <!-- GLOBAL CLASS PDF MATRIX CONTROLLER -->
         <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.2);">
             <h4 style="margin: 0 0 8px 0; color:#f1c40f;">📊 Master Class Report Matrix Generation</h4>
-            <button class="pdf-btn" style="background: #9b59b6; font-size: 15px; padding: 12px 24px;" onclick="generateCompleteClassMatrixPDF()">📄 Download Whole Class Master PDF</button>
+            <button class="pdf-btn" style="background: #9b59b6; font-size: 15px; padding: 12px 24px;" onclick="generateCompleteClassMatrixPDF_Option2()">📄 Download Whole Class Master PDF (Option 2)</button>
         </div>
 
         <div class="center">
@@ -177,7 +171,6 @@
         <div class="icon-grid" id="subjectList"></div>
     </div>
 
-    <!-- 📖 SECTION 4: CHAPTERS TERMINAL -->
     <div id="subSubjectPage" class="page">
         <button class="backBtn" onclick="backToSubjects()">⬅ Return to Subjects</button>
         <h2 id="subjectTitle" style="margin-top: 15px; color:#1abc9c;"></h2>
@@ -188,7 +181,6 @@
         <div class="icon-grid" id="subSubjectList"></div>
     </div>
 
-    <!-- 🧑‍🎓 SECTION 5: LIVE ATTENDANCE SHEET -->
     <div id="studentPage" class="page">
         <button class="backBtn" onclick="backToSubSubjects()">⬅ Return to Chapters</button>
         <h2 id="subSubjectTitle" style="margin-top: 15px; word-break: break-all;"></h2>
@@ -227,7 +219,6 @@
 
     <div id="cloudStatus">☁️ Status Checker Ready</div>
 
-    <!-- 🛠️ APPLICATION CORE LOGIC ENGINE -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyAB77vRMD9FcIVsHXPU3c8lAsBR0HRLmcY",
@@ -672,21 +663,29 @@
             savePdfUniversally(doc, `${currentClass}_${currentSubject}_${currentSubSubject}_Report.pdf`.replace(/\s+/g, '_'));
         }
 
-        function generateCompleteClassMatrixPDF() {
+        // ==========================================
+        // 🔥 NEW: MASTER PDF GENERATION (OPTION 2)
+        // ==========================================
+        function generateCompleteClassMatrixPDF_Option2() {
             const { jsPDF } = window.jspdf;
-            let doc = new jsPDF('l', 'mm', 'a4'); 
+            let doc = new jsPDF('l', 'mm', 'a4'); // Landscape for Matrix Table
             let today = getTodayString();
             
+            // PAGE 1 HEADER
             doc.setFont("Helvetica", "bold");
-            doc.setFontSize(20);
-            doc.text(`🏫 Master Class Performance Matrix: ${currentClass}`, 14, 18);
-            doc.setFontSize(11);
+            doc.setFontSize(18);
+            doc.setTextColor(44, 62, 80);
+            doc.text(`🏫 Class Master Matrix: ${currentClass}`, 14, 18);
+            
+            doc.setFontSize(10);
             doc.setFont("Helvetica", "normal");
-            doc.text(`Generated Date: ${today}`, 14, 25);
+            doc.text(`Generation Date: ${today}`, 14, 24);
+            doc.text(`System Sync Status: ACTIVE`, 14, 29);
             
             let allStudentNamesSet = new Set();
             let allSubjectsMap = data[currentClass] || {};
             
+            // Gather all student profiles dynamically
             for (let sub in allSubjectsMap) {
                 for (let ch in allSubjectsMap[sub]) {
                     let chObj = allSubjectsMap[sub][ch];
@@ -697,8 +696,12 @@
             }
             
             let uniqueStudentsList = Array.from(allStudentNamesSet).sort();
-            if(uniqueStudentsList.length === 0) { alert("❌ No student records profiles found in this class."); return; }
+            if(uniqueStudentsList.length === 0) { 
+                alert("❌ No student records found in this class."); 
+                return; 
+            }
             
+            // HEADERS DEFINITION
             let headers = ['Student Name'];
             let trackColumnsKeys = []; 
             
@@ -710,6 +713,7 @@
             }
             if(trackColumnsKeys.length === 0) { headers.push('No Active Modules'); }
             
+            // MATRIX ROWS CONSTRUCT WITH LATEST DATE BRACKETS
             let tableRows = [];
             uniqueStudentsList.forEach(studentName => {
                 let rowData = [studentName];
@@ -717,7 +721,16 @@
                     let chObj = allSubjectsMap[key.subject][key.chapter];
                     let match = chObj.students.find(s => s.name.toLowerCase() === studentName.toLowerCase());
                     if(match) {
-                        rowData.push(match.dates.includes(today) ? "CHECKED" : "UNCHECKED");
+                        let isCheckedToday = match.dates.includes(today);
+                        let latestDate = getLatestCheckedDate(match.dates);
+                        
+                        if(isCheckedToday) {
+                            rowData.push(`CHECKED\n(${latestDate})`);
+                        } else if(latestDate !== "N/A") {
+                            rowData.push(`PENDING\n(${latestDate})`);
+                        } else {
+                            rowData.push(`UNCHECKED`);
+                        }
                     } else {
                         rowData.push("-");
                     }
@@ -726,28 +739,143 @@
                 tableRows.push(rowData);
             });
             
+            // AUTO TABLE PAGE 1
             doc.autoTable({
-                startY: 32,
+                startY: 34,
                 head: [headers],
                 body: tableRows,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle' },
-                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 9 } },
-                headStyles: { fillColor: [52, 152, 219], textColor: [255, 255, 255] },
+                styles: { fontSize: 7, cellPadding: 2, halign: 'center', valign: 'middle' },
+                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 8.5 } },
+                headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255] },
                 didParseCell: function (tableData) {
                     if (tableData.section === 'body' && tableData.column.index > 0) {
-                        if (tableData.cell.raw === 'CHECKED') {
-                            tableData.cell.styles.textColor = [39, 174, 96];
-                            tableData.cell.styles.fontStyle = 'bold';
-                        } else if (tableData.cell.raw === 'UNCHECKED') {
-                            tableData.cell.styles.textColor = [192, 57, 43];
-                            tableData.cell.styles.fontStyle = 'bold';
+                        let cellVal = tableData.cell.raw;
+                        if (typeof cellVal === 'string') {
+                            if (cellVal.startsWith('CHECKED')) {
+                                tableData.cell.styles.textColor = [39, 174, 96]; // Green
+                                tableData.cell.styles.fontStyle = 'bold';
+                            } else if (cellVal.startsWith('PENDING')) {
+                                tableData.cell.styles.textColor = [230, 126, 34]; // Orange
+                                tableData.cell.styles.fontStyle = 'bold';
+                            } else if (cellVal.startsWith('UNCHECKED')) {
+                                tableData.cell.styles.textColor = [192, 57, 43]; // Red
+                                tableData.cell.styles.fontStyle = 'bold';
+                            }
                         }
                     }
                 }
             });
             
-            savePdfUniversally(doc, `Master_Matrix_${currentClass}_Report.pdf`.replace(/\s+/g, '_'));
+            // PAGE 2 ONWARDS: INDIVIDUAL HISTORICAL BREAKDOWN REPORT
+            doc.addPage('p', 'mm', 'a4'); // Switch back to Portrait for reading records cleanly
+            
+            let yPos = 20;
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(16);
+            doc.setTextColor(26, 188, 156);
+            doc.text(`👤 Student-Wise In-Depth Archive Logs`, 14, yPos);
+            yPos += 8;
+            
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(120, 120, 120);
+            doc.text(`Detailed historical report for all active students indexed in ${currentClass}.`, 14, yPos);
+            yPos += 14;
+            
+            uniqueStudentsList.forEach((studentName, idx) => {
+                // Keep layout within bounds, if yPos exceeds page height, add a new page
+                if (yPos > 260) {
+                    doc.addPage('p', 'mm', 'a4');
+                    yPos = 20;
+                }
+                
+                doc.setFont("Helvetica", "bold");
+                doc.setFontSize(12);
+                doc.setTextColor(44, 62, 80);
+                doc.text(`${idx + 1}. Student Profile: ${studentName.toUpperCase()}`, 14, yPos);
+                yPos += 6;
+                
+                doc.setDrawColor(220, 220, 220);
+                doc.line(14, yPos, 196, yPos); // Horizontal Divider Line
+                yPos += 6;
+                
+                // Fetch student records across subjects
+                let foundAnyRecord = false;
+                for (let sub in allSubjectsMap) {
+                    for (let ch in allSubjectsMap[sub]) {
+                        let chObj = allSubjectsMap[sub][ch];
+                        let match = chObj.students.find(s => s.name.toLowerCase() === studentName.toLowerCase());
+                        
+                        if (match) {
+                            foundAnyRecord = true;
+                            if (yPos > 270) {
+                                doc.addPage('p', 'mm', 'a4');
+                                yPos = 20;
+                            }
+                            
+                            let isToday = match.dates.includes(today) ? "VERIFIED TODAY" : "PENDING LOG UPDATE";
+                            
+                            doc.setFont("Helvetica", "bold");
+                            doc.setFontSize(10);
+                            doc.setTextColor(52, 152, 219);
+                            doc.text(`  • Subject: ${sub} | Chapter: ${ch}`, 14, yPos);
+                            yPos += 5;
+                            
+                            doc.setFont("Helvetica", "normal");
+                            doc.setFontSize(9.5);
+                            doc.setTextColor(44, 62, 80);
+                            
+                            // Color code today's current status
+                            if (isToday === "VERIFIED TODAY") {
+                                doc.text(`    Current Status: `, 14, yPos);
+                                doc.setFont("Helvetica", "bold");
+                                doc.setTextColor(39, 174, 96);
+                                doc.text(`VERIFIED TODAY`, 40, yPos);
+                            } else {
+                                doc.text(`    Current Status: `, 14, yPos);
+                                doc.setFont("Helvetica", "bold");
+                                doc.setTextColor(230, 126, 34);
+                                doc.text(`PENDING TODAY`, 40, yPos);
+                            }
+                            
+                            doc.setFont("Helvetica", "normal");
+                            doc.setTextColor(44, 62, 80);
+                            yPos += 5;
+                            doc.text(`    Total Checked Entries: ${match.dates.length} times`, 14, yPos);
+                            yPos += 5;
+                            
+                            // Print dynamic chronological record dates cleanly
+                            let dateSequence = match.dates.length > 0 ? match.dates.join(', ') : "No entries logged yet";
+                            doc.text(`    Archived Verified Dates: `, 14, yPos);
+                            yPos += 5;
+                            doc.setFont("Helvetica", "italic");
+                            doc.setTextColor(110, 110, 110);
+                            
+                            // Handle potential text wrapping for long date strings
+                            let splitDateSequence = doc.splitTextToSize(dateSequence, 160);
+                            splitDateSequence.forEach(line => {
+                                doc.text(`    ${line}`, 14, yPos);
+                                yPos += 4.5;
+                            });
+                            
+                            yPos += 2; // minor spacing
+                        }
+                    }
+                }
+                
+                if (!foundAnyRecord) {
+                    doc.setFont("Helvetica", "italic");
+                    doc.setFontSize(9.5);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`  No history records mapped for this student.`, 14, yPos);
+                    yPos += 6;
+                }
+                
+                yPos += 8; // spacing after student card
+            });
+            
+            savePdfUniversally(doc, `Master_Detailed_Report_${currentClass}.pdf`.replace(/\s+/g, '_'));
         }
 
         const ROW_HEIGHT = 90; const VIEWPORT_HEIGHT = 460;
