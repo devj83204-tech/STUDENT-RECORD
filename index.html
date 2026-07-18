@@ -378,6 +378,7 @@
         function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
+        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
         function handleCloudAuth() {
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
@@ -390,7 +391,11 @@
                     if (userDoc.exists) {
                         if (userDoc.data().accountPassword === pass) {
                             activeCloudUser = user;
+                            // Session Storage aur Persistent Local Storage dono set karein
                             sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                            localStorage.setItem("autoLoginUser", activeCloudUser);
+                            localStorage.setItem("autoLoginPass", pass);
+                            
                             document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
                             setupRealtimeListener(activeCloudUser);
                             goHome();
@@ -403,6 +408,9 @@
                             .then(() => {
                                 activeCloudUser = user;
                                 sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                                localStorage.setItem("autoLoginUser", activeCloudUser);
+                                localStorage.setItem("autoLoginPass", pass);
+                                
                                 setupRealtimeListener(activeCloudUser);
                                 goHome();
                             });
@@ -412,9 +420,16 @@
         }
 
         function logoutTeacher() {
-            if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-            sessionStorage.removeItem("pwdCloudUser"); activeCloudUser = ""; data = {};
-            showPage("login");
+            if (confirm("Are you sure you want to disconnect from this account node?")) {
+                if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
+                // Clear all persistent storage elements
+                sessionStorage.removeItem("pwdCloudUser"); 
+                localStorage.removeItem("autoLoginUser");
+                localStorage.removeItem("autoLoginPass");
+                activeCloudUser = ""; 
+                data = {};
+                showPage("login");
+            }
         }
 
         function populateSearchDropdown() {
@@ -586,16 +601,27 @@
             return total;
         }
 
+        // APK/WebView Android Storage Engine Compatibility Fallback
+        function savePdfUniversally(doc, filename) {
+            if (!navigator.userAgent.match(/Android/i)) {
+                doc.save(filename);
+                return;
+            }
+            try {
+                const stringBase64 = doc.output('datauristring');
+                const downloadLink = document.createElement("a");
+                downloadLink.href = stringBase64; downloadLink.download = filename;
+                document.body.appendChild(downloadLink); downloadLink.click();
+                document.body.removeChild(downloadLink);
+            } catch(err) { alert("PDF Error: " + err.message); }
+        }
+
         function updateLiveVisualCounters() {
             if(!currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
             let students = data[currentClass][currentSubject][currentSubSubject].students || [];
             let today = getTodayString();
             document.getElementById("statsChecked").innerText = students.filter(s => s.dates.includes(today)).length;
             document.getElementById("statsTotal").innerText = students.length;
-        }
-
-        function savePdfUniversally(doc, filename) {
-            doc.save(filename);
         }
 
         function generatePremiumTabularPDF() {
@@ -624,7 +650,6 @@
                     let match = allSubjectsMap[key.subject][key.chapter].students.find(s => s.name.toLowerCase() === name.toLowerCase());
                     if(match) {
                         let latestDate = match.dates.length > 0 ? [...match.dates].sort().pop() : "N/A";
-                        // Color text logic signals handled natively via text tags
                         rowData.push(match.dates.includes(today) ? `CHECKED\n(${latestDate})` : (latestDate !== "N/A" ? `PENDING\n(${latestDate})` : `UNCHECKED`));
                     } else rowData.push("-");
                 });
@@ -754,11 +779,41 @@
             box.style.display = "block";
         }
 
+        // AUTO-LOGIN INITIALIZER ENGINE
         window.onload = function() {
-            let savedUser = sessionStorage.getItem("pwdCloudUser");
-            if (savedUser) {
-                activeCloudUser = savedUser; document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                setupRealtimeListener(activeCloudUser); goHome();
+            // Pehle check karte hain ki kya local cache me memory fields stored hain
+            let autoUser = localStorage.getItem("autoLoginUser");
+            let autoPass = localStorage.getItem("autoLoginPass");
+            
+            if (autoUser && autoPass) {
+                document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
+                
+                db.collection("teachers_pwd").doc(autoUser).get()
+                    .then((userDoc) => {
+                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
+                            activeCloudUser = autoUser;
+                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                            setupRealtimeListener(activeCloudUser);
+                            goHome();
+                        } else {
+                            // Credentials change ho chuke hain, login screen dikhayein
+                            showPage("login");
+                            document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
+                        }
+                    }).catch(() => {
+                        showPage("login");
+                    });
+            } else {
+                // Koi login records saved nahi hain -> standard login interface show karein
+                showPage("login");
+            }
+
+            // Runtime Webkit API hardware triggers call
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => stream.getTracks().forEach(t => t.stop()))
+                .catch(e => console.log("Native permissions initialized"));
             }
         };
     </script>
