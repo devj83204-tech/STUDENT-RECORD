@@ -599,30 +599,33 @@
             return total;
         }
 
-        // 🚀 HIGHLY COMPATIBLE EMBEDDED ENGINE FOR WEBVIEW/APK ENVIRONMENT
+        // 🌟 DYNAMIC PDF REDIRECTION LOGIC FOR ANDROID / CHROME STREAM 🌟
         function savePdfUniversally(doc, filename) {
-            // Android APK / WebView / Custom Native Wrapper detection hook
-            if (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/WebView/i)) {
-                try {
-                    // Base64 configuration processing stream injection
+            try {
+                // PDF ko raw data text ya Base64 Blob string me convert kar rhe hain
+                const blobPDF = doc.output('blob');
+                const blobUrl = URL.createObjectURL(blobPDF);
+                
+                // Nayi clean window me direct trigger kar rhe hain Chrome ko secure pass dene ke liye
+                const targetWindow = window.open(blobUrl, '_blank');
+                
+                if (!targetWindow) {
+                    // Agar WebView popup block kar rha ho toh fallback alternative stream injector
                     const stringBase64 = doc.output('datauristring');
-                    const pdfWindow = window.open();
-                    if (pdfWindow) {
-                        pdfWindow.document.write("<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='" + stringBase64 + "'></iframe>");
+                    const backupWindow = window.open();
+                    if (backupWindow) {
+                        backupWindow.document.write("<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='" + stringBase64 + "'></iframe>");
                     } else {
-                        // Embedded Fallback in case Window allocation fails inside WebKit core
+                        // Agar sab block ho jaye toh safe download a anchor system lagaya hai
                         const dlAnchor = document.createElement("a");
                         dlAnchor.href = stringBase64; dlAnchor.download = filename;
                         document.body.appendChild(dlAnchor); dlAnchor.click();
                         document.body.removeChild(dlAnchor);
                     }
-                } catch(err) { 
-                    alert("PDF Process Matrix Failure: " + err.message); 
                 }
-                return;
+            } catch(err) { 
+                alert("PDF Viewer Engine Error: " + err.message); 
             }
-            // Standard Desktop browser configuration execution layer
-            doc.save(filename);
         }
 
         function updateLiveVisualCounters() {
