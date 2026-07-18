@@ -391,7 +391,6 @@
                     if (userDoc.exists) {
                         if (userDoc.data().accountPassword === pass) {
                             activeCloudUser = user;
-                            // Session Storage aur Persistent Local Storage dono set karein
                             sessionStorage.setItem("pwdCloudUser", activeCloudUser);
                             localStorage.setItem("autoLoginUser", activeCloudUser);
                             localStorage.setItem("autoLoginPass", pass);
@@ -422,7 +421,6 @@
         function logoutTeacher() {
             if (confirm("Are you sure you want to disconnect from this account node?")) {
                 if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-                // Clear all persistent storage elements
                 sessionStorage.removeItem("pwdCloudUser"); 
                 localStorage.removeItem("autoLoginUser");
                 localStorage.removeItem("autoLoginPass");
@@ -601,19 +599,30 @@
             return total;
         }
 
-        // APK/WebView Android Storage Engine Compatibility Fallback
+        // 🚀 HIGHLY COMPATIBLE EMBEDDED ENGINE FOR WEBVIEW/APK ENVIRONMENT
         function savePdfUniversally(doc, filename) {
-            if (!navigator.userAgent.match(/Android/i)) {
-                doc.save(filename);
+            // Android APK / WebView / Custom Native Wrapper detection hook
+            if (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/WebView/i)) {
+                try {
+                    // Base64 configuration processing stream injection
+                    const stringBase64 = doc.output('datauristring');
+                    const pdfWindow = window.open();
+                    if (pdfWindow) {
+                        pdfWindow.document.write("<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='" + stringBase64 + "'></iframe>");
+                    } else {
+                        // Embedded Fallback in case Window allocation fails inside WebKit core
+                        const dlAnchor = document.createElement("a");
+                        dlAnchor.href = stringBase64; dlAnchor.download = filename;
+                        document.body.appendChild(dlAnchor); dlAnchor.click();
+                        document.body.removeChild(dlAnchor);
+                    }
+                } catch(err) { 
+                    alert("PDF Process Matrix Failure: " + err.message); 
+                }
                 return;
             }
-            try {
-                const stringBase64 = doc.output('datauristring');
-                const downloadLink = document.createElement("a");
-                downloadLink.href = stringBase64; downloadLink.download = filename;
-                document.body.appendChild(downloadLink); downloadLink.click();
-                document.body.removeChild(downloadLink);
-            } catch(err) { alert("PDF Error: " + err.message); }
+            // Standard Desktop browser configuration execution layer
+            doc.save(filename);
         }
 
         function updateLiveVisualCounters() {
@@ -632,7 +641,6 @@
             savePdfUniversally(doc, `${currentSubSubject}_Report.pdf`);
         }
 
-        // MATRIX OPTION 2 - MODIFIED (REMOVED STUDENT HISTORICAL LOGS/PAGE 2)
         function generateCompleteClassMatrixPDF_Option2() {
             const { jsPDF } = window.jspdf; let doc = new jsPDF('l', 'mm', 'a4'); let today = getTodayString();
             doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`🏫 Class Master Matrix: ${currentClass}`, 14, 18);
@@ -781,7 +789,6 @@
 
         // AUTO-LOGIN INITIALIZER ENGINE
         window.onload = function() {
-            // Pehle check karte hain ki kya local cache me memory fields stored hain
             let autoUser = localStorage.getItem("autoLoginUser");
             let autoPass = localStorage.getItem("autoLoginPass");
             
@@ -797,7 +804,6 @@
                             setupRealtimeListener(activeCloudUser);
                             goHome();
                         } else {
-                            // Credentials change ho chuke hain, login screen dikhayein
                             showPage("login");
                             document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
                         }
@@ -805,11 +811,9 @@
                         showPage("login");
                     });
             } else {
-                // Koi login records saved nahi hain -> standard login interface show karein
                 showPage("login");
             }
 
-            // Runtime Webkit API hardware triggers call
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => stream.getTracks().forEach(t => t.stop()))
