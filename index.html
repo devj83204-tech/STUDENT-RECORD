@@ -162,7 +162,7 @@
         
         <div style="background: rgba(59, 130, 246, 0.1); padding: 18px; border-radius: 16px; margin-bottom: 24px; text-align: center; border: 1px dashed rgba(59,130,246,0.3);">
             <h4 style="margin: 0 0 10px 0; color:#eab308; font-size:15px;">📊 External PDF Compilation Portal</h4>
-            <button class="pdf-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="redirectToWebsiteForPDF('matrix')">🌐 Open Website for Full Matrix PDF</button>
+            <button class="pdf-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="redirectToWebsiteForPDF('matrix')">🌐 Open Chrome for Full Matrix PDF</button>
         </div>
 
         <div>
@@ -208,7 +208,7 @@
             <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                 <button id="uncheckFilterBtn" class="toggleFilterBtn" onclick="toggleUncheckedFilter()">⚠️ Filter Unchecked</button>
                 <button id="voiceBtn" class="voice-btn" onclick="toggleVoiceRecognition()">🎙️ Voice Stream Verify</button>
-                <button class="pdf-btn" onclick="redirectToWebsiteForPDF('tabular')">🌐 Website Tabular PDF</button>
+                <button class="pdf-btn" onclick="redirectToWebsiteForPDF('tabular')">🌐 Chrome Tabular PDF</button>
                 <button class="whatsapp-btn" onclick="shareReportViaWhatsAppMatrix()">💬 WhatsApp Broadcast</button>
                 <button class="primary" style="background:#7c3aed;" onclick="toggleNestedCalendarWidget()">📅 Historic Logs</button>
                 <button class="primary" style="background:#eab308; color:#0f172a;" onclick="toggleChapterRankingWidget()">🏆 Leaderboard</button>
@@ -325,6 +325,7 @@
             } catch(e) { return 0; }
         }
 
+        // REALTIME GATEWAY LISTENER WITH SECURITY RULES
         function setupRealtimeListener(userDocId) {
             if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); }
             document.getElementById("cloudStatus").innerText = "🔄 Establishing Live Sync...";
@@ -686,10 +687,6 @@
                 
                 let totalSubmissions = s.dates.length;
                 let currentStreak = 0;
-                let dateSorted = [...s.dates].map(dStr => {
-                    let parts = dStr.split("/");
-                    return new Date(parts[2], parts[1]-1, parts[0]);
-                }).sort((a,b) => b-a);
 
                 let checkDate = new Date(); checkDate.setHours(0,0,0,0);
                 let broken = false;
@@ -720,12 +717,10 @@
             contentArea.innerHTML = html;
         }
 
-        // 🌐 WEBSITE DIRECT REDIRECT GATEWAY (INTEGRATED WITH YOUR GITHUB LINK)
+        // 🌐 CHROME INTENT FORCE ENGINE (अब ये 100% बाहर क्रोम में ही खोलेगा)
         function redirectToWebsiteForPDF(pdfType) {
-            // आपकी दी गई गिटहब वेबसाइट का लिंक यहाँ एम्बेड कर दिया गया है
             const baseWebsiteUrl = "https://devj83204-tech.github.io/STUDENT-RECORD/";
             
-            // डेटा को सिक्योर एन्कोडिंग के साथ URL पैरामीटर्स में कन्वर्ट करना
             const urlParams = new URLSearchParams({
                 type: pdfType,
                 teacher: activeCloudUser || "guest",
@@ -737,15 +732,17 @@
 
             const finalTargetUrl = `${baseWebsiteUrl}?${urlParams.toString()}`;
 
-            // APK के इन-ऐप WebView को चकमा देकर बाहरी डिफ़ॉल्ट ब्राउज़र में रिडायरेक्ट करने का फ़ोर्स सिस्टम
+            // 🚀 APK से बाहर निकलने के लिए एंड्रॉइड का आधिकारिक Intent तरीका
             try {
-                const gatewayWindow = window.open(finalTargetUrl, '_blank', 'noopener,noreferrer');
-                if (!gatewayWindow || gatewayWindow.closed || typeof gatewayWindow.closed === 'undefined') {
-                    // अगर इन-ऐप ब्राउज़र पॉप-अप ब्लॉक करता है, तो करंट विंडो पर रीडायरेक्ट करें
-                    window.location.href = finalTargetUrl;
-                }
+                // 'https://' को हटाएं ताकि intent:// सही से फॉर्मेट हो सके
+                const cleanUrl = finalTargetUrl.replace("https://", "");
+                const chromeIntentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+                
+                // यह लाइन WebView को कंपेल करेगी कि वह मोबाइल का Google Chrome ब्राउज़र ओपन करे
+                window.location.href = chromeIntentUrl;
             } catch (err) {
-                window.location.href = finalTargetUrl;
+                // बैकअप तरीका: अगर Intent फेल हो
+                window.open(finalTargetUrl, '_system');
             }
         }
 
