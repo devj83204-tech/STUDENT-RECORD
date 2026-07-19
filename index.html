@@ -87,11 +87,9 @@
             padding: 20px; border-radius: 18px; margin: 24px auto; text-align: left;
         }
         
-        /* Pull To Refresh Styles */
         .ptr-element { transform: translateY(-50px); height: 50px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #3b82f6; transition: transform 0.2s ease; }
         .ptr-loading { transform: translateY(0px) !important; }
         
-        /* Skeleton Screen Styles */
         .skeleton-wrapper { display: none; width: 100%; margin-top: 20px; }
         .skeleton-box { height: 90px; background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: loading-shimmer 1.5s infinite; border-radius: 16px; margin-bottom: 12px; }
         @keyframes loading-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -168,7 +166,7 @@
         
         <div style="background: rgba(59, 130, 246, 0.1); padding: 18px; border-radius: 16px; margin-bottom: 24px; text-align: center; border: 1px dashed rgba(59,130,246,0.3);">
             <h4 style="margin: 0 0 10px 0; color:#eab308; font-size:15px;">📊 Matrix Data Compilation Engine</h4>
-            <button class="pdf-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="generateCompleteClassMatrixPDF_Option2()">📄 Download Full Class Matrix PDF (Option 2)</button>
+            <button class="pdf-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="generateCompleteClassMatrixPDF_Option2()">📄 Download Full Class Matrix PDF</button>
         </div>
 
         <div>
@@ -193,7 +191,6 @@
 
     <!-- 🧑‍🎓 SECTION 5: LIVE ATTENDANCE SHEET -->
     <div id="studentPage" class="page">
-        <!-- Pull To Refresh Loader element -->
         <div id="ptrIndicator" class="ptr-element">⬇️ Pull Down to Sync Cloud Matrix</div>
         
         <button class="backBtn" onclick="backToSubSubjects()">⬅ Back to Chapters</button>
@@ -262,6 +259,11 @@
             const d = new Date();
             return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
         }
+        
+        function getLiveTimestamp() {
+            const d = new Date();
+            return `${getTodayString()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+        }
 
         function triggerSkeletonLoader(wrapperId, displayDuration) {
             const skeleton = document.getElementById(wrapperId);
@@ -288,7 +290,6 @@
             } catch(e){}
         }
 
-        // PULL TO REFRESH SYSTEM
         let touchStartPos = 0; let touchEndPos = 0;
         const ptrViewport = document.getElementById("virtual-scroll-viewport");
         const ptrIndicator = document.getElementById("ptrIndicator");
@@ -357,508 +358,625 @@
             else if (document.getElementById("studentPage").classList.contains("active")) { refreshVirtualScroll(); }
         }
 
-        async function saveData() { 
-            updateLiveVisualCounters();
-            if (activeCloudUser) {
-                try {
-                    await db.collection("teachers_pwd").doc(activeCloudUser).update({ schoolData: data });
-                    document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
-                } catch (e) {
-                    await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
-                }
+        async function updateCloudStorage() {
+            if (!activeCloudUser) return;
+            try {
+                await db.collection("teachers_pwd").doc(activeCloudUser).update({ schoolData: data });
+            } catch (err) {
+                alert("Error synchronizing matrix cloud sequence: " + err.message);
             }
         }
-        
-        function showPage(id) {
-            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-            document.getElementById(id).classList.add("active");
-            window.scrollTo(0,0);
-        }
-        
-        function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
-        function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
-        function handleCloudAuth() {
-            let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
-            let pass = document.getElementById("teacherPassword").value.trim();
-            if(!user || !pass) return;
+        async function handleCloudAuth() {
+            const user = document.getElementById("teacherUsername").value.trim();
+            const pass = document.getElementById("teacherPassword").value.trim();
+            if(!user || !pass) { alert("Please complete auth credentials."); return; }
             
-            document.getElementById("cloudStatus").innerText = "🔄 Authentication Pending...";
+            activeCloudUser = user.toLowerCase();
+            const docRef = db.collection("teachers_pwd").doc(activeCloudUser);
             
-            db.collection("teachers_pwd").doc(user).get()
-                .then((userDoc) => {
-                    if (userDoc.exists) {
-                        if (userDoc.data().accountPassword === pass) {
-                            activeCloudUser = user;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            localStorage.setItem("autoLoginUser", activeCloudUser);
-                            localStorage.setItem("autoLoginPass", pass);
-                            
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            alert("❌ Credentials mismatch.");
-                        }
+            try {
+                const snap = await docRef.get();
+                if(snap.exists) {
+                    if(snap.data().password === pass) {
+                        data = snap.data().schoolData || {};
+                        document.getElementById("welcomeTitle").innerText = `Welcome Node: ${activeCloudUser.toUpperCase()}`;
+                        setupRealtimeListener(activeCloudUser);
+                        showPage("home");
                     } else {
-                        if (confirm(`User node "${user}" does not exist. Initialize storage gateway?`)) {
-                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
-                            .then(() => {
-                                activeCloudUser = user;
-                                sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                                localStorage.setItem("autoLoginUser", activeCloudUser);
-                                localStorage.setItem("autoLoginPass", pass);
-                                
-                                setupRealtimeListener(activeCloudUser);
-                                goHome();
-                            });
-                        }
+                        alert("Invalid credential token match.");
                     }
-                });
+                } else {
+                    if(confirm("User Node not detected. Register new profile on system?")) {
+                        await docRef.set({ password: pass, schoolData: {} });
+                        data = {};
+                        document.getElementById("welcomeTitle").innerText = `Welcome Node: ${activeCloudUser.toUpperCase()}`;
+                        setupRealtimeListener(activeCloudUser);
+                        showPage("home");
+                    }
+                }
+            } catch(e) {
+                alert("Auth Transaction Failed: " + e.message);
+            }
         }
 
         function logoutTeacher() {
-            if (confirm("Are you sure you want to disconnect from this account node?")) {
-                if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-                sessionStorage.removeItem("pwdCloudUser"); 
-                localStorage.removeItem("autoLoginUser");
-                localStorage.removeItem("autoLoginPass");
-                activeCloudUser = ""; 
-                data = {};
-                showPage("login");
-            }
+            if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
+            activeCloudUser = ""; data = {};
+            document.getElementById("teacherUsername").value = "";
+            document.getElementById("teacherPassword").value = "";
+            document.getElementById("cloudStatus").innerText = "☁️ Cloud Node Status Offline";
+            showPage("login");
         }
 
-        function populateSearchDropdown() {
-            let select = document.getElementById("searchClassDropdown"); if(!select) return;
-            let currentSelection = select.value; select.innerHTML = '<option value="">-- Select Class Channel --</option>';
-            for (let cls in data) {
-                let opt = document.createElement("option"); opt.value = cls; opt.innerText = cls;
-                if(cls === currentSelection) opt.selected = true;
-                select.appendChild(opt);
-            }
-        }
-        
-        function clearSearchOutputFields() {
-            document.getElementById("globalSearchResultDisplay").style.display = "none";
-            document.getElementById("searchStudentName").value = "";
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            refreshActiveInterfaceViewports();
         }
 
-        function executeGlobalStudentSearch() {
-            let targetCls = document.getElementById("searchClassDropdown").value;
-            let targetName = document.getElementById("searchStudentName").value.trim().toLowerCase();
-            let container = document.getElementById("globalSearchResultDisplay");
-            if(!targetCls || !targetName) return;
-
-            container.innerHTML = ""; let matchFound = false;
-            let reportHtml = `<h4 style='margin:0 0 8px 0; color:#10b981;'>Tracking Log for: "${targetName}"</h4>`;
-
-            if(data[targetCls]) {
-                for(let subject in data[targetCls]) {
-                    for(let subsub in data[targetCls][subject]) {
-                        let students = data[targetCls][subject][subsub].students || [];
-                        let match = students.find(s => s.name.toLowerCase() === targetName);
-                        if(match) {
-                            matchFound = true;
-                            let status = match.dates.includes(getTodayString()) ? "<span style='color:#10b981;'>[VERIFIED]</span>" : "<span style='color:#ef4444;'>[PENDING]</span>";
-                            reportHtml += `<p style='margin:4px 0; font-size:13px;'><b>${subject}</b> ➔ ${subsub}: Entries [${match.dates.length}] ${status}</p>`;
-                        }
-                    }
-                }
-            }
-            container.innerHTML = matchFound ? reportHtml : "<p style='color:#ef4444; margin:0;'>❌ No logs discovered.</p>";
-            container.style.display = "block";
-        }
+        function toggleMode() { document.body.classList.toggle('light-mode'); }
 
         function addClass() {
-            let name = document.getElementById("newClass").value.trim(); if (!name) return;
-            if (!data[name]) data[name] = {}; saveData(); document.getElementById("newClass").value = ""; renderClasses();
-        }
-        
-        function renderClasses() {
-            let list = document.getElementById("classList"); list.innerHTML = "";
-            for (let cls in data) {
-                let div = document.createElement("div"); div.className = "icon-box";
-                div.innerHTML = `<span>🏫 <b>${cls}</b></span>`;
-                let del = document.createElement("button"); del.innerText = "🗑 Drop"; del.className = "deleteBtn";
-                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Erase structural node ${cls}?`)) { delete data[cls]; saveData(); renderClasses(); } };
-                div.appendChild(del);
-                div.onclick = () => {
-                    currentClass = cls; showPage("subjectPage");
-                    triggerSkeletonLoader("subjectSkeleton", 450);
-                    document.getElementById("classTitle").innerText = `Index: ${cls} ➔ Modules`;
-                    renderSubjects();
-                };
-                list.appendChild(div);
-            }
+            const name = document.getElementById("newClass").value.trim();
+            if (!name) return;
+            if (!data[name]) { data[name] = {}; updateCloudStorage(); }
+            document.getElementById("newClass").value = "";
         }
 
+        function renderClasses() {
+            triggerSkeletonLoader("homeSkeleton", 400);
+            const container = document.getElementById("classList");
+            container.innerHTML = "";
+            Object.keys(data).sort().forEach(cls => {
+                const box = document.createElement("div");
+                box.className = "icon-box";
+                box.onclick = () => { currentClass = cls; showPage("subjectPage"); };
+                
+                let totalCheckedToday = 0; let totalStudents = 0;
+                let today = getTodayString();
+                if(data[cls]) {
+                    Object.keys(data[cls]).forEach(sub => {
+                        Object.keys(data[cls][sub]).forEach(ch => {
+                            let chObj = data[cls][sub][ch];
+                            if(chObj && chObj.students) {
+                                totalStudents += chObj.students.length;
+                                totalCheckedToday += chObj.students.filter(s => s.dates.includes(today)).length;
+                            }
+                        });
+                    });
+                }
+                
+                box.innerHTML = `
+                    <div style='font-size:28px;'>🏫</div>
+                    <b>${cls}</b>
+                    <small style='color:#10b981;'>Live Count: ${totalCheckedToday}/${totalStudents}</small>
+                    <button class='deleteBtn' style='padding:4px 8px; font-size:11px;' onclick='event.stopPropagation(); deleteClass("${cls}")'>Delete</button>
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        function deleteClass(cls) {
+            if (confirm(`Purge entire dataset node for ${cls}?`)) { delete data[cls]; updateCloudStorage(); }
+        }
+
+        function goHome() { showPage("home"); }
+
         function addSubject() {
-            let name = document.getElementById("newSubject").value.trim(); if (!name) return;
-            if (!data[currentClass][name]) data[currentClass][name] = {}; saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
+            const name = document.getElementById("newSubject").value.trim();
+            if (!name || !currentClass) return;
+            if (!data[currentClass][name]) { data[currentClass][name] = {}; updateCloudStorage(); }
+            document.getElementById("newSubject").value = "";
         }
-        
+
         function renderSubjects() {
-            let list = document.getElementById("subjectList"); list.innerHTML = "";
-            for (let sub in data[currentClass]) {
-                let div = document.createElement("div"); div.className = "icon-box";
-                div.innerHTML = `<span>📘 <b>${sub}</b></span>`;
-                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
-                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop field ${sub}?`)) { delete data[currentClass][sub]; saveData(); renderSubjects(); } };
-                div.appendChild(del);
-                div.onclick = () => {
-                    currentSubject = sub; showPage("subSubjectPage");
-                    triggerSkeletonLoader("subSubjectSkeleton", 450);
-                    document.getElementById("subjectTitle").innerText = `${currentClass} ➔ ${sub}`;
-                    renderSubSubjects();
-                };
-                list.appendChild(div);
-            }
+            triggerSkeletonLoader("subjectSkeleton", 300);
+            document.getElementById("classTitle").innerText = `Class Workspace: ${currentClass}`;
+            const container = document.getElementById("subjectList");
+            container.innerHTML = "";
+            if (!data[currentClass]) return;
+            Object.keys(data[currentClass]).sort().forEach(sub => {
+                const box = document.createElement("div");
+                box.className = "icon-box";
+                box.onclick = () => { currentSubject = sub; showPage("subSubjectPage"); };
+                box.innerHTML = `
+                    <div style='font-size:28px;'>📘</div>
+                    <b>${sub}</b>
+                    <button class='deleteBtn' style='padding:4px 8px; font-size:11px;' onclick='event.stopPropagation(); deleteSubject("${sub}")'>Delete</button>
+                `;
+                container.appendChild(box);
+            });
         }
+
+        function deleteSubject(sub) {
+            if (confirm(`Delete subject node: ${sub}?`)) { delete data[currentClass][sub]; updateCloudStorage(); }
+        }
+
         function backToSubjects() { showPage("subjectPage"); }
 
         function addSubSubject() {
-            let name = document.getElementById("newSubSubject").value.trim(); if (!name) return;
-            if (!data[currentClass][currentSubject][name]) data[currentClass][currentSubject][name] = { students: [] };
-            saveData(); document.getElementById("newSubSubject").value = ""; renderSubSubjects();
-        }
-        
-        function renderSubSubjects() {
-            let list = document.getElementById("subSubjectList"); list.innerHTML = "";
-            for (let subsub in data[currentClass][currentSubject]) {
-                let percentage = calculateSubSubjectCompletionPercentage(currentClass, currentSubject, subsub);
-                
-                let div = document.createElement("div"); div.className = "icon-box";
-                div.innerHTML = `
-                    <span>📖 <b>${subsub}</b></span>
-                    <span class="progress-tag">📊 ${percentage}% Done</span>
-                `;
-                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
-                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop segment ${subsub}?`)) { delete data[currentClass][currentSubject][subsub]; saveData(); renderSubSubjects(); } };
-                div.appendChild(del);
-                div.onclick = () => {
-                    currentSubSubject = subsub;
-                    document.getElementById("localSearchInput").value = ""; filterUncheckedOnly = false;
-                    document.getElementById("nestedCalendarBox").style.display = "none";
-                    document.getElementById("rankingBox").style.display = "none";
-                    showPage("studentPage");
-                    triggerSkeletonLoader("studentSkeleton", 500);
-                    document.getElementById("subSubjectTitle").innerText = `${currentClass} ➔ ${currentSubject} ➔ ${currentSubSubject}`;
-                    refreshVirtualScroll();
-                };
-                list.appendChild(div);
+            const name = document.getElementById("newSubSubject").value.trim();
+            if (!name || !currentClass || !currentSubject) return;
+            if (!data[currentClass][currentSubject][name]) {
+                data[currentClass][currentSubject][name] = { students: [], historyLogs: {} };
+                updateCloudStorage();
             }
+            document.getElementById("newSubSubject").value = "";
         }
+
+        function renderSubSubjects() {
+            triggerSkeletonLoader("subSubjectSkeleton", 300);
+            document.getElementById("subjectTitle").innerText = `${currentClass} ➔ ${currentSubject}`;
+            const container = document.getElementById("subSubjectList");
+            container.innerHTML = "";
+            if (!data[currentClass] || !data[currentClass][currentSubject]) return;
+            Object.keys(data[currentClass][currentSubject]).sort().forEach(subSub => {
+                const box = document.createElement("div");
+                box.className = "icon-box";
+                box.onclick = () => { currentSubSubject = subSub; showPage("studentPage"); };
+                
+                let percentage = calculateSubSubjectCompletionPercentage(currentClass, currentSubject, subSub);
+                
+                box.innerHTML = `
+                    <div style='font-size:28px;'>📖</div>
+                    <b>${subSub}</b>
+                    <span class="progress-tag">Progress: ${percentage}%</span>
+                    <button class='deleteBtn' style='padding:4px 8px; font-size:11px;' onclick='event.stopPropagation(); deleteSubSubject("${subSub}")'>Delete</button>
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        function deleteSubSubject(subSub) {
+            if (confirm(`Delete chapter node: ${subSub}?`)) { delete data[currentClass][currentSubject][subSub]; updateCloudStorage(); }
+        }
+
         function backToSubSubjects() { showPage("subSubjectPage"); }
 
+        function getActiveChapterStudentsArray() {
+            try { return data[currentClass][currentSubject][currentSubSubject].students || []; } catch(e) { return []; }
+        }
+
         function addStudentsText() {
-            let names = document.getElementById("studentNamesInput").value.split(",");
-            names.forEach(n => {
-                let name = n.trim();
-                if (name) {
-                    let exists = data[currentClass][currentSubject][currentSubSubject].students.some(s => s.name.toLowerCase() === name.toLowerCase());
-                    if(!exists) data[currentClass][currentSubject][currentSubSubject].students.push({ name: name, dates: [] });
+            const input = document.getElementById("studentNamesInput").value.trim();
+            if (!input) return;
+            let names = input.split(",").map(n => n.trim()).filter(n => n.length > 0);
+            let targetArray = getActiveChapterStudentsArray();
+            names.forEach(name => {
+                if (!targetArray.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+                    targetArray.push({ name: name, dates: [], timestamps: {}, streak: 0 });
                 }
             });
-            document.getElementById("studentNamesInput").value = ""; saveData(); refreshVirtualScroll();
+            data[currentClass][currentSubject][currentSubSubject].students = targetArray;
+            updateCloudStorage();
+            document.getElementById("studentNamesInput").value = "";
         }
 
         function triggerExcelFileSelector() { document.getElementById("excelHiddenFile").click(); }
-        function processExcelOrCsvUpload(input) {
-            if (input.files && input.files[0]) {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    let lines = e.target.result.split(/\r?\n/);
-                    lines.forEach(line => {
-                        let columns = line.replace(/["']/g, "").trim().split(/,|\t/);
-                        let studentName = columns[0] ? columns[0].trim() : "";
-                        if (studentName && studentName.toLowerCase() !== "name" && studentName.toLowerCase() !== "student name") {
-                            let exists = data[currentClass][currentSubject][currentSubSubject].students.some(s => s.name.toLowerCase() === studentName.toLowerCase());
-                            if(!exists) data[currentClass][currentSubject][currentSubSubject].students.push({ name: studentName, dates: [] });
-                        }
-                    });
-                    saveData(); refreshVirtualScroll();
-                };
-                reader.readAsText(input.files[0]); input.value = "";
-            }
-        }
 
-        function shareReportViaWhatsAppMatrix() {
-            let today = getTodayString(); let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let textBlock = `*📊 Attendance Tracking Update*\n\n*Class:* ${currentClass}\n*Subject:* ${currentSubject}\n*Chapter:* ${currentSubSubject}\n*Date:* ${today}\n\n`;
-            students.forEach((s, idx) => { textBlock += `${idx + 1}. ${s.name} ➔ ${s.dates.includes(today) ? "✔️ CHECKED" : "❌ UNCHECKED"}\n`; });
-            window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(textBlock), '_blank');
-        }
-
-        function calculateStreak(studentName) {
-            let total = 0; let chapters = data[currentClass][currentSubject] || {};
-            for (let ch in chapters) {
-                if (chapters[ch].students && chapters[ch].students.some(s => s.name.toLowerCase() === studentName.toLowerCase() && s.dates.length > 0)) total++;
-            }
-            return total;
-        }
-
-        // 🚀 HIGHLY COMPATIBLE EMBEDDED ENGINE FOR WEBVIEW/APK ENVIRONMENT
-        function savePdfUniversally(doc, filename) {
-            // Android APK / WebView / Custom Native Wrapper detection hook
-            if (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/WebView/i)) {
-                try {
-                    // Base64 configuration processing stream injection
-                    const stringBase64 = doc.output('datauristring');
-                    const pdfWindow = window.open();
-                    if (pdfWindow) {
-                        pdfWindow.document.write("<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='" + stringBase64 + "'></iframe>");
-                    } else {
-                        // Embedded Fallback in case Window allocation fails inside WebKit core
-                        const dlAnchor = document.createElement("a");
-                        dlAnchor.href = stringBase64; dlAnchor.download = filename;
-                        document.body.appendChild(dlAnchor); dlAnchor.click();
-                        document.body.removeChild(dlAnchor);
+        function processExcelOrCsvUpload(inputEl) {
+            const file = inputEl.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                let lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                let targetArray = getActiveChapterStudentsArray();
+                lines.forEach(line => {
+                    let cleanedName = line.replace(/["']/g, "").trim();
+                    if(cleanedName && !targetArray.some(s => s.name.toLowerCase() === cleanedName.toLowerCase())) {
+                        targetArray.push({ name: cleanedName, dates: [], timestamps: {}, streak: 0 });
                     }
-                } catch(err) { 
-                    alert("PDF Process Matrix Failure: " + err.message); 
-                }
-                return;
-            }
-            // Standard Desktop browser configuration execution layer
-            doc.save(filename);
-        }
-
-        function updateLiveVisualCounters() {
-            if(!currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
-            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let today = getTodayString();
-            document.getElementById("statsChecked").innerText = students.filter(s => s.dates.includes(today)).length;
-            document.getElementById("statsTotal").innerText = students.length;
-        }
-
-        function generatePremiumTabularPDF() {
-            const { jsPDF } = window.jspdf; let doc = new jsPDF(); let today = getTodayString();
-            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`Attendance Log: ${currentClass}`, 14, 20);
-            let tableRows = (data[currentClass][currentSubject][currentSubSubject].students || []).map((s, idx) => [idx + 1, s.name, s.dates.includes(today) ? "CHECKED" : "UNCHECKED", s.dates.length]);
-            
-            doc.autoTable({ 
-                startY: 40, 
-                head: [['S.No', 'Student Name', 'Status (Today)', 'Total Entries']], 
-                body: tableRows, 
-                headStyles: { fillColor: [59, 130, 246] },
-                didParseCell: function(data) {
-                    // Color status column texts conditionally
-                    if (data.section === 'body' && data.column.index === 2) {
-                        let text = data.cell.raw;
-                        if (text === "CHECKED") {
-                            data.cell.styles.textColor = [16, 185, 129]; // Green
-                            data.cell.styles.fontStyle = 'bold';
-                        } else if (text === "UNCHECKED") {
-                            data.cell.styles.textColor = [239, 68, 68]; // Red
-                            data.cell.styles.fontStyle = 'bold';
-                        }
-                    }
-                }
-            });
-            savePdfUniversally(doc, `${currentSubSubject}_Report.pdf`);
-        }
-
-        function generateCompleteClassMatrixPDF_Option2() {
-            const { jsPDF } = window.jspdf; let doc = new jsPDF('l', 'mm', 'a4'); let today = getTodayString();
-            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`🏫 Class Master Matrix: ${currentClass}`, 14, 18);
-            
-            let allStudentNamesSet = new Set(); let allSubjectsMap = data[currentClass] || {};
-            for (let sub in allSubjectsMap) { for (let ch in allSubjectsMap[sub]) { (allSubjectsMap[sub][ch].students || []).forEach(s => allStudentNamesSet.add(s.name)); } }
-            let uniqueStudentsList = Array.from(allStudentNamesSet).sort();
-            
-            let headers = ['Student Name']; let trackColumnsKeys = [];
-            for (let sub in allSubjectsMap) { for (let ch in allSubjectsMap[sub]) { headers.push(`${sub}\n(${ch})`); trackColumnsKeys.push({ subject: sub, chapter: ch }); } }
-            
-            let tableRows = uniqueStudentsList.map(name => {
-                let rowData = [name];
-                trackColumnsKeys.forEach(key => {
-                    let match = allSubjectsMap[key.subject][key.chapter].students.find(s => s.name.toLowerCase() === name.toLowerCase());
-                    if(match) {
-                        let latestDate = match.dates.length > 0 ? [...match.dates].sort().pop() : "N/A";
-                        rowData.push(match.dates.includes(today) ? `CHECKED\n(${latestDate})` : (latestDate !== "N/A" ? `PENDING\n(${latestDate})` : `UNCHECKED`));
-                    } else rowData.push("-");
                 });
-                return rowData;
-            });
-            
-            doc.autoTable({
-                startY: 34, 
-                head: [headers], 
-                body: tableRows, 
-                theme: 'grid', 
-                styles: { fontSize: 7, halign: 'center', valign: 'middle' },
-                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 8.5 } }, 
-                headStyles: { fillColor: [30, 41, 59] },
-                didParseCell: function(data) {
-                    // Style structural status nodes conditionally skipping index name column
-                    if (data.section === 'body' && data.column.index > 0) {
-                        let text = String(data.cell.raw);
-                        if (text.includes("CHECKED")) {
-                            data.cell.styles.textColor = [16, 185, 129]; // Green
-                            data.cell.styles.fontStyle = 'bold';
-                        } else if (text.includes("PENDING")) {
-                            data.cell.styles.textColor = [217, 119, 6];   // Deep Yellow / Dark Amber for readability
-                            data.cell.styles.fontStyle = 'bold';
-                        } else if (text.includes("UNCHECKED")) {
-                            data.cell.styles.textColor = [239, 68, 68];   // Red
-                            data.cell.styles.fontStyle = 'bold';
-                        }
-                    }
-                }
-            });
-            
-            savePdfUniversally(doc, `Class_Master_Matrix_Report.pdf`);
-        }
-
-        const ROW_HEIGHT = 90; const VIEWPORT_HEIGHT = 460;
-        function refreshVirtualScroll() {
-            let container = document.getElementById("virtual-scroll-viewport");
-            if(!container || !currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
-            
-            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let searchQuery = document.getElementById("localSearchInput").value.trim().toLowerCase();
-            let today = getTodayString();
-            
-            filteredStudentsList = students.filter(s => {
-                let matchSearch = s.name.toLowerCase().includes(searchQuery);
-                return filterUncheckedOnly ? (matchSearch && !s.dates.includes(today)) : matchSearch;
-            });
-            
-            document.getElementById("virtual-scroll-spacer").style.height = (filteredStudentsList.length * ROW_HEIGHT) + "px";
-            updateVirtualScrollDomNodes();
-        }
-
-        function updateVirtualScrollDomNodes() {
-            let viewport = document.getElementById("virtual-scroll-viewport");
-            let contentBox = document.getElementById("virtual-scroll-content");
-            if(!viewport) return;
-            
-            let startIndex = Math.floor(viewport.scrollTop / ROW_HEIGHT);
-            let endIndex = Math.min(filteredStudentsList.length - 1, Math.floor((viewport.scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT));
-            contentBox.style.transform = `translateY(${startIndex * ROW_HEIGHT}px)`; contentBox.innerHTML = "";
-            let today = getTodayString();
-            
-            for(let i = startIndex; i <= endIndex; i++) {
-                let student = filteredStudentsList[i]; let isChecked = student.dates.includes(today);
-                let latestDate = student.dates.length > 0 ? [...student.dates].sort().pop() : "N/A";
-                let row = document.createElement("div"); row.className = "student-row"; row.style.height = ROW_HEIGHT + "px";
-                row.innerHTML = `
-                    <div class="student-info">
-                        <b>${student.name} <span class="streak-badge">⚡ ${calculateStreak(student.name)}</span></b>
-                        <small>Total Logs: ${student.dates.length} times</small>
-                        <small style="color: #f59e0b;">Latest Check: ${latestDate}</small>
-                    </div>
-                    <div class="student-actions">
-                        <button class="${isChecked ? 'checkedBtn' : 'primary'}" onclick="markStudentStatusInline('${student.name}', true)">✔</button>
-                        <button class="${!isChecked ? 'uncheckBtn' : 'primary'}" onclick="markStudentStatusInline('${student.name}', false)">✖</button>
-                        <button class="deleteBtn" style="padding:10px;" onclick="deleteStudentProfileInline('${student.name}')">🗑</button>
-                    </div>
-                `;
-                contentBox.appendChild(row);
-            }
-        }
-        document.getElementById("virtual-scroll-viewport").addEventListener("scroll", updateVirtualScrollDomNodes);
-
-        function markStudentStatusInline(name, status) {
-            let today = getTodayString(); let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let student = students.find(s => s.name.toLowerCase() === name.toLowerCase());
-            if(student) {
-                let idx = student.dates.indexOf(today);
-                if(status ? (idx === -1 && student.dates.push(today)) : (idx !== -1 && student.dates.splice(idx, 1))) playSound(status ? 'check':'uncheck');
-                saveData(); refreshVirtualScroll();
-            }
-        }
-
-        function deleteStudentProfileInline(name) {
-            if(confirm(`Erase logs for ${name}?`)) {
-                data[currentClass][currentSubject][currentSubSubject].students = data[currentClass][currentSubject][currentSubSubject].students.filter(s => s.name.toLowerCase() !== name.toLowerCase());
-                saveData(); refreshVirtualScroll();
-            }
+                data[currentClass][currentSubject][currentSubSubject].students = targetArray;
+                updateCloudStorage();
+                alert(`Successfully processed spreadsheet row fields!`);
+            };
+            reader.readAsText(file);
+            inputEl.value = "";
         }
 
         function toggleUncheckedFilter() {
             filterUncheckedOnly = !filterUncheckedOnly;
-            document.getElementById("uncheckFilterBtn").innerText = filterUncheckedOnly ? "📋 View Full Roster" : "⚠️ Filter Unchecked";
+            const btn = document.getElementById("uncheckFilterBtn");
+            if(filterUncheckedOnly) {
+                btn.innerText = "⭐ Show All Roster";
+                btn.style.background = "#ef4444"; btn.style.color = "white";
+            } else {
+                btn.innerText = "⚠️ Filter Unchecked";
+                btn.style.background = "#eab308"; btn.style.color = "#0f172a";
+            }
             refreshVirtualScroll();
         }
 
-        function toggleVoiceRecognition() {
-            if(isListening) { stopVoiceEngine(); return; }
-            window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!window.SpeechRecognition) return;
-            
-            recognition = new window.SpeechRecognition(); recognition.continuous = true; recognition.interimResults = false;
-            recognition.onstart = () => { isListening = true; document.getElementById("voiceBtn").className = "voice-btn voice-active"; document.getElementById("voiceStatus").style.display = "block"; };
-            recognition.onresult = (event) => {
-                let textSpoken = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-                let today = getTodayString(); let matchFound = false;
-                data[currentClass][currentSubject][currentSubSubject].students.forEach(s => {
-                    if(textSpoken.includes(s.name.toLowerCase()) && !s.dates.includes(today)) { s.dates.push(today); matchFound = true; }
-                });
-                if(matchFound) { playSound('check'); saveData(); refreshVirtualScroll(); }
-            };
-            recognition.onend = () => stopVoiceEngine(); recognition.start();
+        function updateLiveVisualCounters() {
+            let students = getActiveChapterStudentsArray();
+            let today = getTodayString();
+            let checked = students.filter(s => s.dates.includes(today)).length;
+            document.getElementById("statsChecked").innerText = checked;
+            document.getElementById("statsTotal").innerText = students.length;
         }
 
-        function stopVoiceEngine() { isListening = false; document.getElementById("voiceBtn").className = "voice-btn"; document.getElementById("voiceStatus").style.display = "none"; if(recognition) { recognition.abort(); recognition = null; } }
+        const ROW_HEIGHT = 90;
+        const viewport = document.getElementById("virtual-scroll-viewport");
+        const spacer = document.getElementById("virtual-scroll-spacer");
+        const content = document.getElementById("virtual-scroll-content");
 
-        function toggleNestedCalendarWidget() {
-            let box = document.getElementById("nestedCalendarBox"); if(box.style.display === "block") { box.style.display = "none"; return; }
-            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let allDates = new Set(); students.forEach(s => s.dates.forEach(d => allDates.add(d)));
-            box.innerHTML = "<h4 style='margin:0 0 10px 0;'>Select Archive Context:</h4>";
-            let select = document.createElement("select"); select.innerHTML = "<option value=''>-- Pick Date --</option>";
-            Array.from(allDates).forEach(d => { let opt = document.createElement("option"); opt.value = d; opt.innerText = d; select.appendChild(opt); });
-            let out = document.createElement("div"); out.style.marginTop = "10px";
-            select.onchange = () => {
-                let checked = [], unchecked = []; students.forEach(s => s.dates.includes(select.value) ? checked.push(s.name) : unchecked.push(s.name));
-                out.innerHTML = `<p style='color:#10b981;'>✔️ Done: ${checked.join(", ")}</p><p style='color:#ef4444;'>❌ Pending: ${unchecked.join(", ")}</p>`;
+        viewport.addEventListener("scroll", () => { renderVirtualRows(); });
+
+        function refreshVirtualScroll() {
+            let students = getActiveChapterStudentsArray();
+            let searchVal = document.getElementById("localSearchInput").value.toLowerCase().trim();
+            let today = getTodayString();
+
+            filteredStudentsList = students.filter(s => {
+                let matchesSearch = s.name.toLowerCase().includes(searchVal);
+                if (filterUncheckedOnly) {
+                    return matchesSearch && !s.dates.includes(today);
+                }
+                return matchesSearch;
+            }).sort((a,b) => a.name.localeCompare(b.name));
+
+            spacer.style.height = `${filteredStudentsList.length * ROW_HEIGHT}px`;
+            updateLiveVisualCounters();
+            renderVirtualRows();
+        }
+
+        function renderVirtualRows() {
+            const scrollTop = viewport.scrollTop;
+            const viewportHeight = viewport.clientHeight;
+            
+            let startIndex = Math.floor(scrollTop / ROW_HEIGHT) - 2;
+            let endIndex = Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + 2;
+            
+            if (startIndex < 0) startIndex = 0;
+            if (endIndex > filteredStudentsList.length) endIndex = filteredStudentsList.length;
+            
+            content.style.transform = `translateY(${startIndex * ROW_HEIGHT}px)`;
+            content.innerHTML = "";
+            
+            let today = getTodayString();
+
+            for (let i = startIndex; i < endIndex; i++) {
+                let student = filteredStudentsList[i];
+                let isChecked = student.dates.includes(today);
+                
+                let lastStamp = student.timestamps[today] || "N/A";
+                let verifiedMarker = isChecked ? `<span style="color:#10b981; font-weight:bold;">[CHECKED]</span>` : `<span style="color:#ef4444; font-weight:bold;">[PENDING]</span>`;
+                
+                let row = document.createElement("div");
+                row.className = "student-row";
+                row.style.height = `${ROW_HEIGHT}px`;
+                
+                row.innerHTML = `
+                    <div class="student-info">
+                        <b>${student.name} ${student.streak > 1 ? `<span class="streak-badge">🔥 ${student.streak}</span>` : ''}</b>
+                        <small>Status: ${verifiedMarker}</small>
+                        <small style="opacity:0.6;">Time Stamp: ${lastStamp}</small>
+                    </div>
+                    <div class="student-actions">
+                        ${isChecked ? 
+                            `<button class="uncheckBtn" onclick="toggleStudentStatus('${student.name}', false)">Reset</button>` : 
+                            `<button class="checkedBtn" onclick="toggleStudentStatus('${student.name}', true)">Verify</button>`
+                        }
+                        <button class="deleteBtn" style="padding:10px;" onclick="removeStudentProfile('${student.name}')">🗑️</button>
+                    </div>
+                `;
+                content.appendChild(row);
+            }
+        }
+
+        function toggleStudentStatus(name, markChecked) {
+            let students = getActiveChapterStudentsArray();
+            let idx = students.findIndex(s => s.name === name);
+            if(idx === -1) return;
+            
+            let today = getTodayString();
+            let stamp = getLiveTimestamp();
+            
+            if(markChecked) {
+                if(!students[idx].dates.includes(today)) {
+                    students[idx].dates.push(today);
+                    students[idx].timestamps[today] = stamp;
+                    students[idx].streak = (students[idx].streak || 0) + 1;
+                    playSound('check');
+                }
+            } else {
+                students[idx].dates = students[idx].dates.filter(d => d !== today);
+                delete students[idx].timestamps[today];
+                students[idx].streak = Math.max(0, (students[idx].streak || 1) - 1);
+                playSound('uncheck');
+            }
+            
+            data[currentClass][currentSubject][currentSubSubject].students = students;
+            
+            if(!data[currentClass][currentSubject][currentSubSubject].historyLogs) {
+                data[currentClass][currentSubject][currentSubSubject].historyLogs = {};
+            }
+            data[currentClass][currentSubject][currentSubSubject].historyLogs[today] = students.filter(s => s.dates.includes(today)).map(s => s.name);
+            
+            updateCloudStorage();
+        }
+
+        function removeStudentProfile(name) {
+            if(confirm(`Purge profile record for ${name}?`)) {
+                let students = getActiveChapterStudentsArray();
+                students = students.filter(s => s.name !== name);
+                data[currentClass][currentSubject][currentSubSubject].students = students;
+                updateCloudStorage();
+            }
+        }
+
+        function toggleVoiceRecognition() {
+            if (isListening) {
+                stopVoiceStream();
+            } else {
+                startVoiceStream();
+            }
+        }
+
+        function startVoiceStream() {
+            window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!window.SpeechRecognition) { alert("Speech architecture unsupported."); return; }
+            
+            recognition = new window.SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = () => {
+                isListening = true;
+                const btn = document.getElementById("voiceBtn");
+                btn.innerText = "🛑 Stop Streaming";
+                btn.classList.add("voice-active");
+                document.getElementById("voiceStatus").style.display = "block";
             };
-            box.appendChild(select); box.appendChild(out); box.style.display = "block";
+            
+            recognition.onresult = (event) => {
+                let lastIndex = event.results.length - 1;
+                let text = event.results[lastIndex][0].transcript.toLowerCase().trim();
+                text = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                
+                let students = getActiveChapterStudentsArray();
+                students.forEach(st => {
+                    if(text.includes(st.name.toLowerCase())) {
+                        toggleStudentStatus(st.name, true);
+                    }
+                });
+            };
+            
+            recognition.onerror = (e) => { stopVoiceStream(); };
+            recognition.onend = () => { stopVoiceStream(); };
+            recognition.start();
+        }
+
+        function stopVoiceStream() {
+            isListening = false;
+            if(recognition) { recognition.stop(); recognition = null; }
+            const btn = document.getElementById("voiceBtn");
+            btn.innerText = "🎙️ Voice Stream Verify";
+            btn.classList.remove("voice-active");
+            document.getElementById("voiceStatus").style.display = "none";
         }
 
         function toggleChapterRankingWidget() {
-            let box = document.getElementById("rankingBox"); if(box.style.display === "block") { box.style.display = "none"; return; }
-            let ranks = (data[currentClass][currentSubject][currentSubSubject].students || []).map(s => ({name: s.name, points: s.dates.length})).sort((a,b) => b.points - a.points);
-            box.innerHTML = `<h3>🏆 Chapter Leaderboard</h3>`;
-            ranks.slice(0, 5).forEach((item, idx) => { box.innerHTML += `<div class='rankItem'>🥇 Rank ${idx+1}: ${item.name} (${item.points} times)</div>`; });
+            const box = document.getElementById("rankingBox");
+            if(box.style.display === "block") { box.style.display = "none"; return; }
+            
+            let students = getActiveChapterStudentsArray();
+            if(students.length === 0) { box.innerHTML = "<b>No data registered to calculate ranks.</b>"; box.style.display = "block"; return; }
+            
+            let sorted = [...students].sort((a,b) => (b.streak || 0) - (a.streak || 0));
+            
+            let html = `<h3 style='margin-top:0; color:#eab308;'>🏆 Roster Retention Leaderboard</h3>`;
+            sorted.forEach((st, index) => {
+                html += `<div class='rankItem'><b>#${index+1} ${st.name}</b> — Consistency Power: <span style='color:#10b981; font-weight:bold;'>${st.streak || 0} Days</span></div>`;
+            });
+            box.innerHTML = html;
             box.style.display = "block";
         }
 
-        // AUTO-LOGIN INITIALIZER ENGINE
-        window.onload = function() {
-            let autoUser = localStorage.getItem("autoLoginUser");
-            let autoPass = localStorage.getItem("autoLoginPass");
+        function toggleNestedCalendarWidget() {
+            const box = document.getElementById("nestedCalendarBox");
+            if(box.style.display === "block") { box.style.display = "none"; return; }
             
-            if (autoUser && autoPass) {
-                document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
-                
-                db.collection("teachers_pwd").doc(autoUser).get()
-                    .then((userDoc) => {
-                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
-                            activeCloudUser = autoUser;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            showPage("login");
-                            document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
-                        }
-                    }).catch(() => {
-                        showPage("login");
-                    });
-            } else {
-                showPage("login");
-            }
+            let chapterObj = data[currentClass][currentSubject][currentSubSubject] || {};
+            let logs = chapterObj.historyLogs || {};
+            
+            let html = `<h3 style='margin-top:0; color:#7c3aed;'>📅 Chronological Sync Log Indexes</h3>`;
+            let datesArr = Object.keys(logs).sort((a,b) => {
+                let p1 = a.split("/").reverse().join("-");
+                let p2 = b.split("/").reverse().join("-");
+                return p2.localeCompare(p1);
+            });
+            
+            if(datesArr.length === 0) { html += `<p style='opacity:0.6;'>No chronological matrix items archived.</p>`; }
+            
+            datesArr.forEach(dt => {
+                html += `
+                    <div style='margin-bottom:12px; background:rgba(0,0,0,0.15); padding:10px; border-radius:8px;'>
+                        <b style='color:#60a5fa;'>Date Field: ${dt}</b>
+                        <div style='font-size:13px; margin-top:4px; opacity:0.9;'>Verified Submissions (${logs[dt].length}): ${logs[dt].join(", ") || 'None'}</div>
+                    </div>
+                `;
+            });
+            box.innerHTML = html;
+            box.style.display = "block";
+        }
 
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => stream.getTracks().forEach(t => t.stop()))
-                .catch(e => console.log("Native permissions initialized"));
+        function generatePremiumTabularPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            let today = getTodayString();
+            doc.setFillColor(15, 23, 42); doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text("STUDENT RECORD METRIC SYSTEM", 14, 20);
+            doc.setFontSize(11); doc.text(`Generation Date/Time Stamp: ${getLiveTimestamp()}`, 14, 32);
+            
+            doc.setTextColor(15, 23, 42); doc.setFontSize(12);
+            doc.text(`Class Channel: ${currentClass}`, 14, 50);
+            doc.text(`Subject Field: ${currentSubject}`, 14, 56);
+            doc.text(`Chapter Module: ${currentSubSubject}`, 14, 62);
+            
+            let tableData = filteredStudentsList.map((st, i) => {
+                let status = st.dates.includes(today) ? "CHECKED" : "UNCHECKED";
+                let time = st.timestamps[today] || "N/A";
+                return [i+1, st.name, status, time, `${st.streak || 0} Days`];
+            });
+            
+            doc.autoTable({
+                startY: 70,
+                head: [['Index', 'Student Identity Name', 'Verification Status', 'Log Timestamp', 'Retention Count']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [59, 130, 246] },
+                styles: { fontSize: 10 }
+            });
+            
+            doc.save(`Record_${currentClass}_${currentSubSubject}_${today}.pdf`);
+        }
+
+        function generateCompleteClassMatrixPDF_Option2() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            let today = getTodayString();
+            
+            doc.setFillColor(30, 41, 59); doc.rect(0, 0, 297, 35, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(24); doc.text("CLASS TRACKING METRIX MATRIX", 14, 18);
+            doc.setFontSize(11); doc.text(`Class Target Context: ${currentClass} | Generated Node: ${getLiveTimestamp()}`, 14, 28);
+            
+            let subjectsObj = data[currentClass] || {};
+            let chaptersList = [];
+            Object.keys(subjectsObj).forEach(subKey => {
+                Object.keys(subjectsObj[subKey]).forEach(chKey => {
+                    chaptersList.push({ subject: subKey, chapter: chKey });
+                });
+            });
+            
+            let allStudentNamesMap = new Set();
+            chaptersList.forEach(node => {
+                let students = subjectsObj[node.subject][node.chapter].students || [];
+                students.forEach(s => allStudentNamesMap.add(s.name));
+            });
+            
+            let uniqueStudentsArray = Array.from(allStudentNamesMap).sort();
+            
+            if(chaptersList.length === 0 || uniqueStudentsArray.length === 0) {
+                alert("Insufficient multi-dimensional matrix variables to evaluate grid."); return;
             }
+            
+            let headers = ['Student Name Profile'];
+            chaptersList.forEach(node => {
+                headers.push(`${node.subject}\n(${node.chapter})`);
+            });
+            
+            let bodyRows = [];
+            uniqueStudentsArray.forEach(name => {
+                let row = [name];
+                chaptersList.forEach(node => {
+                    let studentArr = subjectsObj[node.subject][node.chapter].students || [];
+                    let match = studentArr.find(s => s.name === name);
+                    if(match) {
+                        row.push(match.dates.includes(today) ? 'CHECKED' : 'UNCHECKED');
+                    } else {
+                        row.push('-');
+                    }
+                });
+                bodyRows.push(row);
+            });
+            
+            doc.autoTable({
+                startY: 45,
+                head: [headers],
+                body: bodyRows,
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129], fontSize: 8, halign: 'center' },
+                styles: { fontSize: 9, cellPadding: 2 },
+                columnStyles: { 0: { fontStyle: 'bold', width: 45 } }
+            });
+            
+            doc.save(`Matrix_Sheet_${currentClass}_${today}.pdf`);
+        }
+
+        function shareReportViaWhatsAppMatrix() {
+            let today = getTodayString();
+            let msg = `*STUDENT RECORD METRIC SYSTEM STATUS REPORT*\n`;
+            msg += `*Date Window:* ${today}\n`;
+            msg += `*Class Index:* ${currentClass}\n`;
+            msg += `*Chapter Field:* ${currentSubSubject}\n`;
+            msg += `-------------------------------------------\n`;
+            
+            filteredStudentsList.forEach((s, idx) => {
+                let state = s.dates.includes(today) ? "✅ CHECKED" : "❌ UNCHECKED";
+                msg += `${idx + 1}. ${s.name} ➔ ${state}\n`;
+            });
+            
+            let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        function populateSearchDropdown() {
+            const dropdown = document.getElementById("searchClassDropdown");
+            if(!dropdown) return;
+            dropdown.innerHTML = `<option value="">-- Select Class Channel --</option>`;
+            Object.keys(data).sort().forEach(cls => {
+                let opt = document.createElement("option");
+                opt.value = cls; opt.innerText = cls;
+                dropdown.appendChild(opt);
+            });
+        }
+
+        function clearSearchOutputFields() {
+            document.getElementById("globalSearchResultDisplay").innerHTML = "";
+            document.getElementById("globalSearchResultDisplay").style.display = "none";
+        }
+
+        function executeGlobalStudentSearch() {
+            const targetClass = document.getElementById("searchClassDropdown").value;
+            const targetName = document.getElementById("searchStudentName").value.trim().toLowerCase();
+            const displayNode = document.getElementById("globalSearchResultDisplay");
+            
+            if(!targetClass || !targetName) {
+                alert("Please select both target class node and profile text string query."); return;
+            }
+            
+            displayNode.innerHTML = "";
+            displayNode.style.display = "block";
+            
+            let classData = data[targetClass] || {};
+            let matchFound = false;
+            let finalHtmlOutput = `<h4 style='margin:0 0 8px 0; color:#60a5fa;'>Logs Compiled for Name Query: "${targetName}"</h4>`;
+            
+            Object.keys(classData).forEach(subKey => {
+                Object.keys(classData[subKey]).forEach(chKey => {
+                    let studentsArr = classData[subKey][chKey].students || [];
+                    let foundStudent = studentsArr.find(s => s.name.toLowerCase() === targetName);
+                    
+                    if(foundStudent) {
+                        matchFound = true;
+                        let checkedDatesStr = foundStudent.dates.length > 0 ? foundStudent.dates.join(", ") : "Zero Log Entries Saved";
+                        finalHtmlOutput += `
+                            <div style='border-bottom: 1px solid rgba(255,255,255,0.1); padding:6px 0;'>
+                                <b>Subject:</b> ${subKey} | <b>Chapter:</b> ${chKey}<br>
+                                <small style='color:#eab308;'>Streak Score: ${foundStudent.streak || 0} Days</small><br>
+                                <small style='opacity:0.8;'>Archived Log Dates: ${checkedDatesStr}</small>
+                            </div>
+                        `;
+                    }
+                });
+            });
+            
+            if(!matchFound) {
+                finalHtmlOutput += `<p style='opacity:0.6; font-size:13px;'>No specific match identified within "${targetClass}" architecture.</p>`;
+            }
+            
+            displayNode.innerHTML = finalHtmlOutput;
+        }
+
+        window.onload = () => {
+            document.getElementById("cloudStatus").innerText = "☁️ System Initialized Offline";
         };
     </script>
 </body>
