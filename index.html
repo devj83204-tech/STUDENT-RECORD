@@ -1,418 +1,825 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>STUDENT RECORD APP</title>
-  <style>
-    :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --text-color: #f8fafc;
-      --subtext-color: #94a3b8;
-      --input-bg: #0f172a;
-      --border-color: #334155;
-    }
-
-    .light-theme {
-      --bg-color: #f1f5f9;
-      --card-bg: #ffffff;
-      --text-color: #0f172a;
-      --subtext-color: #64748b;
-      --input-bg: #f8fafc;
-      --border-color: #cbd5e1;
-    }
-
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background 0.3s, color 0.3s; }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-    }
-
-    /* Header Controls */
-    .header-bar {
-      width: 100%;
-      max-width: 600px;
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 10px;
-    }
-
-    .toggle-btn {
-      background: #eab308;
-      color: #000;
-      border: none;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    .card {
-      background: var(--card-bg);
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-      width: 100%;
-      max-width: 600px;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    h1 { color: #38bdf8; font-size: 24px; margin-top: 0; letter-spacing: 1px; }
-    h3 { margin-top: 0; color: #38bdf8; }
-
-    input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: var(--input-bg);
-      color: var(--text-color);
-      font-size: 14px;
-      margin-bottom: 15px;
-    }
-
-    button.btn-primary {
-      background-color: #2563eb;
-      color: white;
-      border: none;
-      padding: 12px;
-      font-size: 15px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      width: 100%;
-      margin-bottom: 10px;
-    }
-    button.btn-primary:hover { background-color: #1d4ed8; }
-
-    button.btn-google {
-      background-color: #ea4335;
-      color: white;
-      border: none;
-      padding: 12px;
-      font-size: 15px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      width: 100%;
-    }
-    button.btn-google:hover { background-color: #d93025; }
-
-    .btn-danger { background-color: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-    .btn-danger:hover { background-color: #dc2626; }
-
-    .divider {
-      display: flex;
-      align-items: center;
-      text-align: center;
-      color: var(--subtext-color);
-      margin: 15px 0;
-      font-size: 13px;
-    }
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .divider::before { margin-right: .5em; }
-    .divider::after { margin-left: .5em; }
-
-    /* Dashboard Styles */
-    #dashboard { display: none; text-align: left; }
-    .user-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-    .user-profile { display: flex; align-items: center; gap: 10px; }
-    .user-profile img { width: 40px; height: 40px; border-radius: 50%; background: #334155; }
-
-    .form-group { margin-bottom: 12px; }
-    label { display: block; margin-bottom: 5px; font-size: 13px; color: var(--subtext-color); }
-
-    /* Table Styles */
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); }
-    th { background-color: var(--input-bg); color: #38bdf8; font-size: 13px; }
-    td { font-size: 13px; }
-
-    /* Status Bar */
-    #status-toast {
-      position: fixed;
-      bottom: 15px;
-      right: 15px;
-      background: #1e293b;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 6px;
-      font-size: 12px;
-      display: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STUDENT RECORD APP</title>
+    
+    <!-- Firebase Legacy Architecture Frameworks -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Client PDF Component -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-variant-numeric: tabular-nums; }
+        body {
+            margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc;
+            overflow-x: hidden; width: 100vw; min-height: 100vh;
+        }
+        .light-mode { background: linear-gradient(135deg, #f8fafc, #e2e8f0) !important; color: #0f172a !important; }
+        .light-mode .page { color: #0f172a !important; }
+        .light-mode .icon-box, .light-mode .student-row, .light-mode #rankingBox, .light-mode .calendar-nested-box, .light-mode .stats-widget, .light-mode .search-profile-box {
+            background: rgba(255, 255, 255, 0.8) !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .light-mode input, .light-mode select { background: #ffffff !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
+        
+        .page { display: none; padding: 20px; width: 100%; min-height: 100vh; position: relative; z-index: 10; max-width: 800px; margin: 0 auto; }
+        .active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .center { text-align: center; }
+        
+        .auth-container {
+            max-width: 400px; margin: 40px auto; padding: 35px 25px;
+            background: rgba(30, 41, 59, 0.7); border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3), 0 10px 10px -5px rgba(0,0,0,0.3);
+            backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        button {
+            padding: 12px 20px; margin: 6px; border: none; border-radius: 12px;
+            cursor: pointer; font-weight: 600; font-size: 14px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        button:active { transform: scale(0.97); }
+        .primary { background: #3b82f6; color: white; }
+        .primary:hover { background: #2563eb; }
+        .success-btn { background: #10b981; color: white; }
+        .success-btn:hover { background: #059669; }
+        .pdf-btn { background: #8b5cf6; color: white; }
+        .voice-btn { background: #f59e0b; color: white; }
+        .voice-active { background: #ef4444 !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .excel-btn { background: #0ea5e9; color: white; }
+        .whatsapp-btn { background: #22c55e; color: white; }
+        .deleteBtn { background: #ef4444; color: white; }
+        .deleteBtn:hover { background: #dc2626; }
+        .checkedBtn { background: #10b981; color: white; }
+        .uncheckBtn { background: #f97316; color: white; }
+        .backBtn { background: #475569; color: white; }
+        .toggleFilterBtn { background: #eab308; color: #0f172a; }
+        .modeToggle { position: fixed; top: 15px; right: 15px; z-index: 999; padding: 10px 14px; font-size: 13px; border-radius: 20px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); color: inherit; }
+        
+        .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-top: 24px; width: 100%; }
+        .icon-box {
+            background: rgba(30, 41, 59, 0.45); padding: 20px; border-radius: 16px;
+            text-align: center; cursor: pointer; display: flex; flex-direction: column;
+            justify-content: space-between; align-items: center; gap: 14px; min-height: 140px;
+            border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px);
+            transition: all 0.2s ease;
+        }
+        .icon-box:hover { transform: translateY(-4px); border-color: #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
+        
+        input, select { padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin: 6px 0; color: #f8fafc; font-size: 15px; width: 100%; background: #1e293b; transition: all 0.2s; }
+        input:focus, select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
+        
+        .stats-widget {
+            background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 14px;
+            font-size: 16px; font-weight: 600; margin: 16px auto; border-left: 5px solid #10b981; text-align: center;
+        }
+        .search-profile-box {
+            background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 20px; border-radius: 18px; margin: 24px auto; text-align: left;
+        }
+        
+        /* Pull To Refresh Styles */
+        .ptr-element { transform: translateY(-50px); height: 50px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #3b82f6; transition: transform 0.2s ease; }
+        .ptr-loading { transform: translateY(0px) !important; }
+        
+        /* Skeleton Screen Styles */
+        .skeleton-wrapper { display: none; width: 100%; margin-top: 20px; }
+        .skeleton-box { height: 90px; background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: loading-shimmer 1.5s infinite; border-radius: 16px; margin-bottom: 12px; }
+        @keyframes loading-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        #virtual-scroll-viewport { height: 460px; overflow-y: auto; position: relative; width: 100%; background: rgba(0, 0, 0, 0.2); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        #virtual-scroll-spacer { position: absolute; width: 100%; top: 0; left: 0; }
+        #virtual-scroll-content { position: absolute; left: 0; top: 0; width: 100%; }
+        
+        .student-row { 
+            height: 90px; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); 
+        }
+        .student-info { flex: 1; text-align: left; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; }
+        .student-info b { font-size: 15px; color: inherit; line-height: 1.3; margin-bottom: 3px; }
+        .student-info small { font-size: 12px; opacity: 0.7; line-height: 1.4; }
+        .student-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+        .student-actions button { padding: 10px 14px; margin: 0; font-size: 15px; border-radius: 10px; }
+        .streak-badge { background: #ef4444; color: white; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold; margin-left: 6px; }
+        
+        #rankingBox, .calendar-nested-box { margin-top: 24px; background: rgba(30, 41, 59, 0.5); padding: 20px; border-radius: 16px; text-align: left; border: 1px solid rgba(255,255,255,0.05); }
+        .rankItem { margin: 10px 0; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
+        #cloudStatus { position: fixed; bottom: 15px; right: 15px; font-size: 12px; background: rgba(15, 23, 42, 0.9); padding: 8px 16px; border-radius: 20px; z-index: 1000; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
+        
+        .progress-tag { background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-size: 11px; padding: 2px 6px; border-radius: 6px; font-weight: bold; margin-top: 4px; display: inline-block; }
+    </style>
 </head>
 <body>
 
-  <div class="header-bar">
-    <button class="toggle-btn" onclick="toggleTheme()">🌙 Toggle Theme</button>
-  </div>
+    <button class="modeToggle" onclick="toggleMode()">🌓 Toggle Theme</button>
 
-  <!-- AUTHENTICATION CARD -->
-  <div class="card" id="auth-box">
-    <h1>STUDENT RECORD APP</h1>
-
-    <!-- Mobile OTP Section -->
-    <div id="phone-auth-section">
-      <h3>📱 Mobile OTP Login</h3>
-      <input type="tel" id="phone-number" placeholder="+917458975956" value="+917458975956" />
-      <div id="recaptcha-container"></div>
-      <button class="btn-primary" id="send-otp-btn">Send OTP 📲</button>
-
-      <!-- OTP Verification Box (Hidden by default) -->
-      <div id="otp-verify-box" style="display: none; margin-top: 15px;">
-        <input type="text" id="otp-code" placeholder="Enter 6-digit OTP" />
-        <button class="btn-primary" id="verify-otp-btn">Verify OTP & Login</button>
-      </div>
-    </div>
-
-    <div class="divider">OR</div>
-
-    <!-- Google Login Section -->
-    <button class="btn-google" id="google-login-btn">Sign in with Google</button>
-  </div>
-
-  <!-- MAIN APP DASHBOARD -->
-  <div class="card" id="dashboard">
-    <div class="user-header">
-      <div class="user-profile">
-        <img id="user-img" src="https://via.placeholder.com/40" alt="Profile" />
-        <div>
-          <strong id="user-name" style="display: block;">User</strong>
-          <small id="user-info-text" style="color: var(--subtext-color);"></small>
+    <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
+    <div id="login" class="page active">
+        <div class="center" style="margin-top: 80px;">
+            <h1 style="font-size:36px; font-weight: 800; letter-spacing:-0.5px; margin-bottom: 30px; background: linear-gradient(to right, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">STUDENT RECORD APP</h1>
+            <div class="auth-container">
+                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up Page</h2>
+                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID">
+                <input type="password" id="teacherPassword" placeholder="Enter Secure Password">
+                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleCloudAuth()">Create or Login Account ➔</button>
+            </div>
         </div>
-      </div>
-      <button id="logout-btn" class="btn-danger">Logout</button>
     </div>
 
-    <h3>Add Student Record</h3>
-    <form id="student-form">
-      <div class="form-group">
-        <label>Student Name</label>
-        <input type="text" id="student-name" placeholder="John Doe" required />
-      </div>
-      <div class="form-group">
-        <label>Roll Number</label>
-        <input type="text" id="student-roll" placeholder="101" required />
-      </div>
-      <div class="form-group">
-        <label>Course</label>
-        <input type="text" id="student-course" placeholder="Computer Science" required />
-      </div>
-      <button type="submit" class="btn-primary">Save Student</button>
-    </form>
+    <!-- 🏫 SECTION 2: HOMEPAGE DASHBOARD -->
+    <div id="home" class="page">
+        <div>
+            <h1 id="welcomeTitle" style="font-size:28px; font-weight:800;">Welcome Dashboard</h1>
+            
+            <div class="search-profile-box">
+                <h3 style="margin-top:0; color:#3b82f6; display:flex; align-items:center; gap:8px;">🔍 Analytics Profile Tracker</h3>
+                <select id="searchClassDropdown" onchange="clearSearchOutputFields()"><option value="">-- Select Class Channel --</option></select>
+                <input type="text" id="searchStudentName" placeholder="Type target student name completely...">
+                <button class="primary" style="width:100%; margin-top:10px;" onclick="executeGlobalStudentSearch()">Fetch Analytical Logs</button>
+                <div id="globalSearchResultDisplay" style="margin-top:14px; background:rgba(0,0,0,0.2); padding:12px; border-radius:10px; display:none; max-height:220px; overflow-y:auto;"></div>
+            </div>
 
-    <hr style="border-color: var(--border-color); margin: 25px 0;">
+            <div style="margin-top:24px;">
+                <input type="text" id="newClass" placeholder="Create Class Node (e.g., Class 12-B)">
+                <button class="primary" style="width:100%; margin-top:6px;" onclick="addClass()">Add Class</button>
+            </div>
+            
+            <div class="skeleton-wrapper" id="homeSkeleton"><div class="skeleton-box"></div><div class="skeleton-box"></div></div>
+            <div class="icon-grid" id="classList"></div>
+            
+            <div style="margin-top: 40px; text-align: center;">
+                <button class="deleteBtn" onclick="logoutTeacher()">Secure Disconnect Node ⬅</button>
+            </div>
+        </div>
+    </div>
 
-    <h3>Student Records</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Roll No</th>
-          <th>Name</th>
-          <th>Course</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="student-table-body">
-        <!-- Records load dynamically -->
-      </tbody>
-    </table>
-  </div>
+    <!-- 📘 SECTION 3: SUBJECTS TERMINAL -->
+    <div id="subjectPage" class="page">
+        <button class="backBtn" onclick="goHome()">⬅ Back to Dashboard</button>
+        <h2 id="classTitle" style="margin-top: 20px; font-weight:800;"></h2>
+        
+        <div style="background: rgba(59, 130, 246, 0.1); padding: 18px; border-radius: 16px; margin-bottom: 24px; text-align: center; border: 1px dashed rgba(59,130,246,0.3);">
+            <h4 style="margin: 0 0 10px 0; color:#eab308; font-size:15px;">📊 Matrix Data Compilation Engine</h4>
+            <button class="pdf-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="generateCompleteClassMatrixPDF_Option2()">📄 Download Full Class Matrix PDF (Option 2)</button>
+        </div>
 
-  <div id="status-toast"></div>
+        <div>
+            <input type="text" id="newSubject" placeholder="Enter New Subject Field">
+            <button class="primary" style="width:100%; margin-top:6px;" onclick="addSubject()">Add Subject</button>
+        </div>
+        <div class="skeleton-wrapper" id="subjectSkeleton"><div class="skeleton-box"></div></div>
+        <div class="icon-grid" id="subjectList"></div>
+    </div>
 
-  <!-- Firebase Compat Libraries -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- 📖 SECTION 4: CHAPTERS TERMINAL -->
+    <div id="subSubjectPage" class="page">
+        <button class="backBtn" onclick="backToSubjects()">⬅ Back to Subjects</button>
+        <h2 id="subjectTitle" style="margin-top: 20px; font-weight:800;"></h2>
+        <div>
+            <input type="text" id="newSubSubject" placeholder="Enter Chapter / Sub-Subject Designation">
+            <button class="primary" style="width:100%; margin-top:6px;" onclick="addSubSubject()">Add Sub Subject</button>
+        </div>
+        <div class="skeleton-wrapper" id="subSubjectSkeleton"><div class="skeleton-box"></div></div>
+        <div class="icon-grid" id="subSubjectList"></div>
+    </div>
 
-  <script>
-    // --- 1. FIREBASE CONFIGURATION ---
-    // Replace with your credentials from Firebase Settings
-    const firebaseConfig = {
-      apiKey: "AIzaSy...", 
-      authDomain: "student-record-app-45ed3.firebaseapp.com",
-      projectId: "student-record-app-45ed3",
-      storageBucket: "student-record-app-45ed3.firebasestorage.app",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+    <!-- 🧑‍🎓 SECTION 5: LIVE ATTENDANCE SHEET -->
+    <div id="studentPage" class="page">
+        <!-- Pull To Refresh Loader element -->
+        <div id="ptrIndicator" class="ptr-element">⬇️ Pull Down to Sync Cloud Matrix</div>
+        
+        <button class="backBtn" onclick="backToSubSubjects()">⬅ Back to Chapters</button>
+        <h2 id="subSubjectTitle" style="margin-top: 20px; font-weight:800; word-break: break-all;"></h2>
+        
+        <div class="stats-widget">📈 Submission Index Rate: <span id="statsChecked">0</span> / <span id="statsTotal">0</span> Checked</div>
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+        <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+            <input type="text" id="studentNamesInput" placeholder="Bulk input names (e.g. Rahul, Aman, Karan, Vijay)">
+            <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+                <button class="primary" style="flex:1;" onclick="addStudentsText()">Bulk Register Profiles</button>
+                <button class="excel-btn" style="flex:1;" onclick="triggerExcelFileSelector()">📁 Import Spreadsheet</button>
+                <input type="file" id="excelHiddenFile" accept=".csv, .txt, .xlsx" style="display:none;" onchange="processExcelOrCsvUpload(this)">
+            </div>
+        </div>
 
-    let confirmationResultGlobal = null;
+        <div style="background: rgba(30,41,59,0.5); padding: 18px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+            <input type="text" id="localSearchInput" placeholder="🔍 Filter live record roster index..." oninput="refreshVirtualScroll()">
+            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button id="uncheckFilterBtn" class="toggleFilterBtn" onclick="toggleUncheckedFilter()">⚠️ Filter Unchecked</button>
+                <button id="voiceBtn" class="voice-btn" onclick="toggleVoiceRecognition()">🎙️ Voice Stream Verify</button>
+                <button class="pdf-btn" onclick="generatePremiumTabularPDF()">📄 Tabular PDF</button>
+                <button class="whatsapp-btn" onclick="shareReportViaWhatsAppMatrix()">💬 WhatsApp Broadcast</button>
+                <button class="primary" style="background:#7c3aed;" onclick="toggleNestedCalendarWidget()">📅 Historic Logs</button>
+                <button class="primary" style="background:#eab308; color:#0f172a;" onclick="toggleChapterRankingWidget()">🏆 Leaderboard</button>
+            </div>
+            <div id="voiceStatus" style="font-size:13px; margin-top:8px; color:#f59e0b; display:none; font-weight:700;">Biometric Mic Feed Hooked...</div>
+            <div id="nestedCalendarBox" class="calendar-nested-box" style="display:none;"></div>
+            <div id="rankingBox" style="display:none;"></div>
+        </div>
 
-    // --- 2. THEME TOGGLE ---
-    function toggleTheme() {
-      document.body.classList.toggle('light-theme');
-    }
+        <div class="skeleton-wrapper" id="studentSkeleton"><div class="skeleton-box"></div><div class="skeleton-box"></div><div class="skeleton-box"></div></div>
+        <div id="virtual-scroll-viewport">
+            <div id="virtual-scroll-spacer"></div>
+            <div id="virtual-scroll-content"></div>
+        </div>
+    </div>
 
-    function showToast(msg) {
-      const toast = document.getElementById('status-toast');
-      toast.innerText = msg;
-      toast.style.display = 'block';
-      setTimeout(() => toast.style.display = 'none', 3000);
-    }
+    <div id="cloudStatus">☁️ Cloud Node Status Offline</div>
 
-    // --- 3. RECAPTCHA SETUP FOR PHONE AUTH ---
-    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      'size': 'invisible',
-      'callback': (response) => {
-        // reCAPTCHA solved
-      }
-    });
+    <!-- 🛠️ APPLICATION CORE LOGIC ENGINE -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAB77vRMD9FcIVsHXPU3c8lAsBR0HRLmcY",
+            authDomain: "student-record-app-45ed3.firebaseapp.com",
+            databaseURL: "https://student-record-app-45ed3-default-rtdb.firebaseio.com",
+            projectId: "student-record-app-45ed3",
+            storageBucket: "student-record-app-45ed3.appspot.com",
+            messagingSenderId: "581800549444",
+            appId: "1:581800549444:web:f86cec08754bbb1d58bec5",
+            measurementId: "G-9QJPS5TDWF"
+        };
 
-    // --- 4. PHONE OTP LOGIN ---
-    document.getElementById('send-otp-btn').addEventListener('click', () => {
-      const phoneNumber = document.getElementById('phone-number').value.trim();
-      if (!phoneNumber) {
-        alert("Please enter a valid phone number with country code!");
-        return;
-      }
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-      showToast("Requesting OTP...");
-      const appVerifier = window.recaptchaVerifier;
+        let data = {}; 
+        let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
+        let filterUncheckedOnly = false; let filteredStudentsList = [];
+        let recognition = null; let isListening = false;
+        let activeCloudUser = "";
+        let audioCtx = null;
+        let liveSubscriptionUnsubscribe = null;
 
-      auth.signInWithPhoneNumber(phoneNumber, appVerifier)
-        .then((confirmationResult) => {
-          confirmationResultGlobal = confirmationResult;
-          document.getElementById('otp-verify-box').style.display = 'block';
-          alert("OTP sent successfully to " + phoneNumber);
-          showToast("OTP Sent!");
-        })
-        .catch((error) => {
-          alert("Error sending OTP: " + error.message);
-          console.error(error);
-        });
-    });
-
-    document.getElementById('verify-otp-btn').addEventListener('click', () => {
-      const code = document.getElementById('otp-code').value.trim();
-      if (!code) return alert("Please enter the OTP code!");
-
-      confirmationResultGlobal.confirm(code)
-        .then((result) => {
-          showToast("Phone authenticated successfully!");
-        })
-        .catch((error) => {
-          alert("Invalid OTP Code: " + error.message);
-        });
-    });
-
-    // --- 5. GOOGLE LOGIN ---
-    const googleProvider = new firebase.GoogleAuthProvider();
-    document.getElementById('google-login-btn').addEventListener('click', () => {
-      auth.signInWithPopup(googleProvider).catch((error) => {
-        alert("Google Sign-In Failed: " + error.message);
-      });
-    });
-
-    // --- 6. LOGOUT ---
-    document.getElementById('logout-btn').addEventListener('click', () => {
-      auth.signOut();
-    });
-
-    // --- 7. AUTH OBSERVER ---
-    auth.onAuthStateChanged((user) => {
-      const authBox = document.getElementById('auth-box');
-      const dashboard = document.getElementById('dashboard');
-
-      if (user) {
-        authBox.style.display = 'none';
-        dashboard.style.display = 'block';
-
-        document.getElementById('user-name').innerText = user.displayName || "Authenticated User";
-        document.getElementById('user-info-text').innerText = user.email || user.phoneNumber || "";
-        if (user.photoURL) {
-          document.getElementById('user-img').src = user.photoURL;
+        function getTodayString() {
+            const d = new Date();
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
         }
 
-        loadRecords();
-      } else {
-        authBox.style.display = 'block';
-        dashboard.style.display = 'none';
-      }
-    });
+        function triggerSkeletonLoader(wrapperId, displayDuration) {
+            const skeleton = document.getElementById(wrapperId);
+            if(skeleton) {
+                skeleton.style.display = "block";
+                setTimeout(() => { skeleton.style.display = "none"; }, displayDuration);
+            }
+        }
 
-    // --- 8. FIRESTORE DATABASE (STUDENT RECORDS) ---
-    const studentForm = document.getElementById('student-form');
-    const tableBody = document.getElementById('student-table-body');
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                if (type === 'check') {
+                    osc.frequency.setValueAtTime(580, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+                } else {
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+                }
+            } catch(e){}
+        }
 
-    studentForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+        // PULL TO REFRESH SYSTEM
+        let touchStartPos = 0; let touchEndPos = 0;
+        const ptrViewport = document.getElementById("virtual-scroll-viewport");
+        const ptrIndicator = document.getElementById("ptrIndicator");
 
-      const name = document.getElementById('student-name').value;
-      const roll = document.getElementById('student-roll').value;
-      const course = document.getElementById('student-course').value;
+        ptrViewport.addEventListener('touchstart', (e) => {
+            if(ptrViewport.scrollTop === 0) { touchStartPos = e.touches[0].clientY; }
+        }, {passive: true});
 
-      db.collection('students').add({
-        name: name,
-        roll: roll,
-        course: course,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      })
-      .then(() => {
-        studentForm.reset();
-        showToast("Record added successfully!");
-      })
-      .catch((err) => alert("Database Error: " + err.message));
-    });
+        ptrViewport.addEventListener('touchmove', (e) => {
+            if(ptrViewport.scrollTop === 0 && touchStartPos > 0) {
+                touchEndPos = e.touches[0].clientY;
+                let pullDistance = touchEndPos - touchStartPos;
+                if(pullDistance > 10) {
+                    ptrIndicator.classList.add("ptr-loading");
+                    ptrIndicator.innerText = "🔄 Release to synchronize with Cloud Node...";
+                }
+            }
+        }, {passive: true});
 
-    function loadRecords() {
-      db.collection('students').orderBy('createdAt', 'desc')
-        .onSnapshot((snapshot) => {
-          tableBody.innerHTML = '';
-          if (snapshot.empty) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No records found</td></tr>';
-            return;
-          }
-
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${data.roll || ''}</td>
-              <td>${data.name || ''}</td>
-              <td>${data.course || ''}</td>
-              <td><button class="btn-danger" onclick="deleteRecord('${doc.id}')">Delete</button></td>
-            `;
-            tableBody.appendChild(row);
-          });
+        ptrViewport.addEventListener('touchend', () => {
+            if(ptrIndicator.classList.contains("ptr-loading")) {
+                ptrIndicator.innerText = "⚡ Fetching real-time architecture...";
+                if(activeCloudUser) {
+                    setupRealtimeListener(activeCloudUser);
+                }
+                setTimeout(() => {
+                    ptrIndicator.classList.remove("ptr-loading");
+                    ptrIndicator.innerText = "⬇️ Pull Down to Sync Cloud Matrix";
+                }, 1200);
+            }
+            touchStartPos = 0;
         });
-    }
 
-    window.deleteRecord = function(id) {
-      if (confirm("Are you sure you want to delete this record?")) {
-        db.collection('students').doc(id).delete()
-          .then(() => showToast("Record deleted!"))
-          .catch((err) => alert("Error: " + err.message));
-      }
-    };
-  </script>
+        function calculateSubSubjectCompletionPercentage(className, subjectName, chapterName) {
+            try {
+                let chapterObj = data[className][subjectName][chapterName];
+                if (!chapterObj || !chapterObj.students || chapterObj.students.length === 0) return 0;
+                let today = getTodayString();
+                let checkedCount = chapterObj.students.filter(s => s.dates.includes(today)).length;
+                return Math.round((checkedCount / chapterObj.students.length) * 100);
+            } catch(e) { return 0; }
+        }
+
+        function setupRealtimeListener(userDocId) {
+            if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); }
+            document.getElementById("cloudStatus").innerText = "🔄 Establishing Live Sync...";
+            
+            liveSubscriptionUnsubscribe = db.collection("teachers_pwd").doc(userDocId)
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        data = doc.data().schoolData || {};
+                        document.getElementById("cloudStatus").innerText = "☁️ Realtime Sync: Active";
+                        refreshActiveInterfaceViewports();
+                    }
+                }, (error) => {
+                    document.getElementById("cloudStatus").innerText = "⚠️ Sync Error Lockout";
+                });
+        }
+
+        function refreshActiveInterfaceViewports() {
+            updateLiveVisualCounters();
+            populateSearchDropdown();
+            if (document.getElementById("home").classList.contains("active")) { renderClasses(); } 
+            else if (document.getElementById("subjectPage").classList.contains("active")) { renderSubjects(); } 
+            else if (document.getElementById("subSubjectPage").classList.contains("active")) { renderSubSubjects(); } 
+            else if (document.getElementById("studentPage").classList.contains("active")) { refreshVirtualScroll(); }
+        }
+
+        async function saveData() { 
+            updateLiveVisualCounters();
+            if (activeCloudUser) {
+                try {
+                    await db.collection("teachers_pwd").doc(activeCloudUser).update({ schoolData: data });
+                    document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
+                } catch (e) {
+                    await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
+                }
+            }
+        }
+        
+        function showPage(id) {
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+            document.getElementById(id).classList.add("active");
+            window.scrollTo(0,0);
+        }
+        
+        function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
+        function toggleMode() { document.body.classList.toggle("light-mode"); }
+
+        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
+        function handleCloudAuth() {
+            let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
+            let pass = document.getElementById("teacherPassword").value.trim();
+            if(!user || !pass) return;
+            
+            document.getElementById("cloudStatus").innerText = "🔄 Authentication Pending...";
+            
+            db.collection("teachers_pwd").doc(user).get()
+                .then((userDoc) => {
+                    if (userDoc.exists) {
+                        if (userDoc.data().accountPassword === pass) {
+                            activeCloudUser = user;
+                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                            localStorage.setItem("autoLoginUser", activeCloudUser);
+                            localStorage.setItem("autoLoginPass", pass);
+                            
+                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                            setupRealtimeListener(activeCloudUser);
+                            goHome();
+                        } else {
+                            alert("❌ Credentials mismatch.");
+                        }
+                    } else {
+                        if (confirm(`User node "${user}" does not exist. Initialize storage gateway?`)) {
+                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
+                            .then(() => {
+                                activeCloudUser = user;
+                                sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                                localStorage.setItem("autoLoginUser", activeCloudUser);
+                                localStorage.setItem("autoLoginPass", pass);
+                                
+                                setupRealtimeListener(activeCloudUser);
+                                goHome();
+                            });
+                        }
+                    }
+                });
+        }
+
+        function logoutTeacher() {
+            if (confirm("Are you sure you want to disconnect from this account node?")) {
+                if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
+                sessionStorage.removeItem("pwdCloudUser"); 
+                localStorage.removeItem("autoLoginUser");
+                localStorage.removeItem("autoLoginPass");
+                activeCloudUser = ""; 
+                data = {};
+                showPage("login");
+            }
+        }
+
+        function populateSearchDropdown() {
+            let select = document.getElementById("searchClassDropdown"); if(!select) return;
+            let currentSelection = select.value; select.innerHTML = '<option value="">-- Select Class Channel --</option>';
+            for (let cls in data) {
+                let opt = document.createElement("option"); opt.value = cls; opt.innerText = cls;
+                if(cls === currentSelection) opt.selected = true;
+                select.appendChild(opt);
+            }
+        }
+        
+        function clearSearchOutputFields() {
+            document.getElementById("globalSearchResultDisplay").style.display = "none";
+            document.getElementById("searchStudentName").value = "";
+        }
+
+        function executeGlobalStudentSearch() {
+            let targetCls = document.getElementById("searchClassDropdown").value;
+            let targetName = document.getElementById("searchStudentName").value.trim().toLowerCase();
+            let container = document.getElementById("globalSearchResultDisplay");
+            if(!targetCls || !targetName) return;
+
+            container.innerHTML = ""; let matchFound = false;
+            let reportHtml = `<h4 style='margin:0 0 8px 0; color:#10b981;'>Tracking Log for: "${targetName}"</h4>`;
+
+            if(data[targetCls]) {
+                for(let subject in data[targetCls]) {
+                    for(let subsub in data[targetCls][subject]) {
+                        let students = data[targetCls][subject][subsub].students || [];
+                        let match = students.find(s => s.name.toLowerCase() === targetName);
+                        if(match) {
+                            matchFound = true;
+                            let status = match.dates.includes(getTodayString()) ? "<span style='color:#10b981;'>[VERIFIED]</span>" : "<span style='color:#ef4444;'>[PENDING]</span>";
+                            reportHtml += `<p style='margin:4px 0; font-size:13px;'><b>${subject}</b> ➔ ${subsub}: Entries [${match.dates.length}] ${status}</p>`;
+                        }
+                    }
+                }
+            }
+            container.innerHTML = matchFound ? reportHtml : "<p style='color:#ef4444; margin:0;'>❌ No logs discovered.</p>";
+            container.style.display = "block";
+        }
+
+        function addClass() {
+            let name = document.getElementById("newClass").value.trim(); if (!name) return;
+            if (!data[name]) data[name] = {}; saveData(); document.getElementById("newClass").value = ""; renderClasses();
+        }
+        
+        function renderClasses() {
+            let list = document.getElementById("classList"); list.innerHTML = "";
+            for (let cls in data) {
+                let div = document.createElement("div"); div.className = "icon-box";
+                div.innerHTML = `<span>🏫 <b>${cls}</b></span>`;
+                let del = document.createElement("button"); del.innerText = "🗑 Drop"; del.className = "deleteBtn";
+                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Erase structural node ${cls}?`)) { delete data[cls]; saveData(); renderClasses(); } };
+                div.appendChild(del);
+                div.onclick = () => {
+                    currentClass = cls; showPage("subjectPage");
+                    triggerSkeletonLoader("subjectSkeleton", 450);
+                    document.getElementById("classTitle").innerText = `Index: ${cls} ➔ Modules`;
+                    renderSubjects();
+                };
+                list.appendChild(div);
+            }
+        }
+
+        function addSubject() {
+            let name = document.getElementById("newSubject").value.trim(); if (!name) return;
+            if (!data[currentClass][name]) data[currentClass][name] = {}; saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
+        }
+        
+        function renderSubjects() {
+            let list = document.getElementById("subjectList"); list.innerHTML = "";
+            for (let sub in data[currentClass]) {
+                let div = document.createElement("div"); div.className = "icon-box";
+                div.innerHTML = `<span>📘 <b>${sub}</b></span>`;
+                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
+                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop field ${sub}?`)) { delete data[currentClass][sub]; saveData(); renderSubjects(); } };
+                div.appendChild(del);
+                div.onclick = () => {
+                    currentSubject = sub; showPage("subSubjectPage");
+                    triggerSkeletonLoader("subSubjectSkeleton", 450);
+                    document.getElementById("subjectTitle").innerText = `${currentClass} ➔ ${sub}`;
+                    renderSubSubjects();
+                };
+                list.appendChild(div);
+            }
+        }
+        function backToSubjects() { showPage("subjectPage"); }
+
+        function addSubSubject() {
+            let name = document.getElementById("newSubSubject").value.trim(); if (!name) return;
+            if (!data[currentClass][currentSubject][name]) data[currentClass][currentSubject][name] = { students: [] };
+            saveData(); document.getElementById("newSubSubject").value = ""; renderSubSubjects();
+        }
+        
+        function renderSubSubjects() {
+            let list = document.getElementById("subSubjectList"); list.innerHTML = "";
+            for (let subsub in data[currentClass][currentSubject]) {
+                let percentage = calculateSubSubjectCompletionPercentage(currentClass, currentSubject, subsub);
+                
+                let div = document.createElement("div"); div.className = "icon-box";
+                div.innerHTML = `
+                    <span>📖 <b>${subsub}</b></span>
+                    <span class="progress-tag">📊 ${percentage}% Done</span>
+                `;
+                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
+                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop segment ${subsub}?`)) { delete data[currentClass][currentSubject][subsub]; saveData(); renderSubSubjects(); } };
+                div.appendChild(del);
+                div.onclick = () => {
+                    currentSubSubject = subsub;
+                    document.getElementById("localSearchInput").value = ""; filterUncheckedOnly = false;
+                    document.getElementById("nestedCalendarBox").style.display = "none";
+                    document.getElementById("rankingBox").style.display = "none";
+                    showPage("studentPage");
+                    triggerSkeletonLoader("studentSkeleton", 500);
+                    document.getElementById("subSubjectTitle").innerText = `${currentClass} ➔ ${currentSubject} ➔ ${currentSubSubject}`;
+                    refreshVirtualScroll();
+                };
+                list.appendChild(div);
+            }
+        }
+        function backToSubSubjects() { showPage("subSubjectPage"); }
+
+        function addStudentsText() {
+            let names = document.getElementById("studentNamesInput").value.split(",");
+            names.forEach(n => {
+                let name = n.trim();
+                if (name) {
+                    let exists = data[currentClass][currentSubject][currentSubSubject].students.some(s => s.name.toLowerCase() === name.toLowerCase());
+                    if(!exists) data[currentClass][currentSubject][currentSubSubject].students.push({ name: name, dates: [] });
+                }
+            });
+            document.getElementById("studentNamesInput").value = ""; saveData(); refreshVirtualScroll();
+        }
+
+        function triggerExcelFileSelector() { document.getElementById("excelHiddenFile").click(); }
+        function processExcelOrCsvUpload(input) {
+            if (input.files && input.files[0]) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    let lines = e.target.result.split(/\r?\n/);
+                    lines.forEach(line => {
+                        let columns = line.replace(/["']/g, "").trim().split(/,|\t/);
+                        let studentName = columns[0] ? columns[0].trim() : "";
+                        if (studentName && studentName.toLowerCase() !== "name" && studentName.toLowerCase() !== "student name") {
+                            let exists = data[currentClass][currentSubject][currentSubSubject].students.some(s => s.name.toLowerCase() === studentName.toLowerCase());
+                            if(!exists) data[currentClass][currentSubject][currentSubSubject].students.push({ name: studentName, dates: [] });
+                        }
+                    });
+                    saveData(); refreshVirtualScroll();
+                };
+                reader.readAsText(input.files[0]); input.value = "";
+            }
+        }
+
+        function shareReportViaWhatsAppMatrix() {
+            let today = getTodayString(); let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let textBlock = `*📊 Attendance Tracking Update*\n\n*Class:* ${currentClass}\n*Subject:* ${currentSubject}\n*Chapter:* ${currentSubSubject}\n*Date:* ${today}\n\n`;
+            students.forEach((s, idx) => { textBlock += `${idx + 1}. ${s.name} ➔ ${s.dates.includes(today) ? "✔️ CHECKED" : "❌ UNCHECKED"}\n`; });
+            window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(textBlock), '_blank');
+        }
+
+        function calculateStreak(studentName) {
+            let total = 0; let chapters = data[currentClass][currentSubject] || {};
+            for (let ch in chapters) {
+                if (chapters[ch].students && chapters[ch].students.some(s => s.name.toLowerCase() === studentName.toLowerCase() && s.dates.length > 0)) total++;
+            }
+            return total;
+        }
+
+        // 🚀 HIGHLY COMPATIBLE EMBEDDED ENGINE FOR WEBVIEW/APK ENVIRONMENT
+        function savePdfUniversally(doc, filename) {
+            // Android APK / WebView / Custom Native Wrapper detection hook
+            if (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/WebView/i)) {
+                try {
+                    // Base64 configuration processing stream injection
+                    const stringBase64 = doc.output('datauristring');
+                    const pdfWindow = window.open();
+                    if (pdfWindow) {
+                        pdfWindow.document.write("<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='" + stringBase64 + "'></iframe>");
+                    } else {
+                        // Embedded Fallback in case Window allocation fails inside WebKit core
+                        const dlAnchor = document.createElement("a");
+                        dlAnchor.href = stringBase64; dlAnchor.download = filename;
+                        document.body.appendChild(dlAnchor); dlAnchor.click();
+                        document.body.removeChild(dlAnchor);
+                    }
+                } catch(err) { 
+                    alert("PDF Process Matrix Failure: " + err.message); 
+                }
+                return;
+            }
+            // Standard Desktop browser configuration execution layer
+            doc.save(filename);
+        }
+
+        function updateLiveVisualCounters() {
+            if(!currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let today = getTodayString();
+            document.getElementById("statsChecked").innerText = students.filter(s => s.dates.includes(today)).length;
+            document.getElementById("statsTotal").innerText = students.length;
+        }
+
+        function generatePremiumTabularPDF() {
+            const { jsPDF } = window.jspdf; let doc = new jsPDF(); let today = getTodayString();
+            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`Attendance Log: ${currentClass}`, 14, 20);
+            let tableRows = (data[currentClass][currentSubject][currentSubSubject].students || []).map((s, idx) => [idx + 1, s.name, s.dates.includes(today) ? "CHECKED" : "UNCHECKED", s.dates.length]);
+            doc.autoTable({ startY: 40, head: [['S.No', 'Student Name', 'Status (Today)', 'Total Entries']], body: tableRows, headStyles: { fillColor: [59, 130, 246] } });
+            savePdfUniversally(doc, `${currentSubSubject}_Report.pdf`);
+        }
+
+        function generateCompleteClassMatrixPDF_Option2() {
+            const { jsPDF } = window.jspdf; let doc = new jsPDF('l', 'mm', 'a4'); let today = getTodayString();
+            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`🏫 Class Master Matrix: ${currentClass}`, 14, 18);
+            
+            let allStudentNamesSet = new Set(); let allSubjectsMap = data[currentClass] || {};
+            for (let sub in allSubjectsMap) { for (let ch in allSubjectsMap[sub]) { (allSubjectsMap[sub][ch].students || []).forEach(s => allStudentNamesSet.add(s.name)); } }
+            let uniqueStudentsList = Array.from(allStudentNamesSet).sort();
+            
+            let headers = ['Student Name']; let trackColumnsKeys = [];
+            for (let sub in allSubjectsMap) { for (let ch in allSubjectsMap[sub]) { headers.push(`${sub}\n(${ch})`); trackColumnsKeys.push({ subject: sub, chapter: ch }); } }
+            
+            let tableRows = uniqueStudentsList.map(name => {
+                let rowData = [name];
+                trackColumnsKeys.forEach(key => {
+                    let match = allSubjectsMap[key.subject][key.chapter].students.find(s => s.name.toLowerCase() === name.toLowerCase());
+                    if(match) {
+                        let latestDate = match.dates.length > 0 ? [...match.dates].sort().pop() : "N/A";
+                        rowData.push(match.dates.includes(today) ? `CHECKED\n(${latestDate})` : (latestDate !== "N/A" ? `PENDING\n(${latestDate})` : `UNCHECKED`));
+                    } else rowData.push("-");
+                });
+                return rowData;
+            });
+            
+            doc.autoTable({
+                startY: 34, head: [headers], body: tableRows, theme: 'grid', styles: { fontSize: 7, halign: 'center', valign: 'middle' },
+                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 8.5 } }, headStyles: { fillColor: [30, 41, 59] }
+            });
+            
+            savePdfUniversally(doc, `Class_Master_Matrix_Report.pdf`);
+        }
+
+        const ROW_HEIGHT = 90; const VIEWPORT_HEIGHT = 460;
+        function refreshVirtualScroll() {
+            let container = document.getElementById("virtual-scroll-viewport");
+            if(!container || !currentClass || !data[currentClass] || !data[currentClass][currentSubject] || !data[currentClass][currentSubject][currentSubSubject]) return;
+            
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let searchQuery = document.getElementById("localSearchInput").value.trim().toLowerCase();
+            let today = getTodayString();
+            
+            filteredStudentsList = students.filter(s => {
+                let matchSearch = s.name.toLowerCase().includes(searchQuery);
+                return filterUncheckedOnly ? (matchSearch && !s.dates.includes(today)) : matchSearch;
+            });
+            
+            document.getElementById("virtual-scroll-spacer").style.height = (filteredStudentsList.length * ROW_HEIGHT) + "px";
+            updateVirtualScrollDomNodes();
+        }
+
+        function updateVirtualScrollDomNodes() {
+            let viewport = document.getElementById("virtual-scroll-viewport");
+            let contentBox = document.getElementById("virtual-scroll-content");
+            if(!viewport) return;
+            
+            let startIndex = Math.floor(viewport.scrollTop / ROW_HEIGHT);
+            let endIndex = Math.min(filteredStudentsList.length - 1, Math.floor((viewport.scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT));
+            contentBox.style.transform = `translateY(${startIndex * ROW_HEIGHT}px)`; contentBox.innerHTML = "";
+            let today = getTodayString();
+            
+            for(let i = startIndex; i <= endIndex; i++) {
+                let student = filteredStudentsList[i]; let isChecked = student.dates.includes(today);
+                let latestDate = student.dates.length > 0 ? [...student.dates].sort().pop() : "N/A";
+                let row = document.createElement("div"); row.className = "student-row"; row.style.height = ROW_HEIGHT + "px";
+                row.innerHTML = `
+                    <div class="student-info">
+                        <b>${student.name} <span class="streak-badge">⚡ ${calculateStreak(student.name)}</span></b>
+                        <small>Total Logs: ${student.dates.length} times</small>
+                        <small style="color: #f59e0b;">Latest Check: ${latestDate}</small>
+                    </div>
+                    <div class="student-actions">
+                        <button class="${isChecked ? 'checkedBtn' : 'primary'}" onclick="markStudentStatusInline('${student.name}', true)">✔</button>
+                        <button class="${!isChecked ? 'uncheckBtn' : 'primary'}" onclick="markStudentStatusInline('${student.name}', false)">✖</button>
+                        <button class="deleteBtn" style="padding:10px;" onclick="deleteStudentProfileInline('${student.name}')">🗑</button>
+                    </div>
+                `;
+                contentBox.appendChild(row);
+            }
+        }
+        document.getElementById("virtual-scroll-viewport").addEventListener("scroll", updateVirtualScrollDomNodes);
+
+        function markStudentStatusInline(name, status) {
+            let today = getTodayString(); let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let student = students.find(s => s.name.toLowerCase() === name.toLowerCase());
+            if(student) {
+                let idx = student.dates.indexOf(today);
+                if(status ? (idx === -1 && student.dates.push(today)) : (idx !== -1 && student.dates.splice(idx, 1))) playSound(status ? 'check':'uncheck');
+                saveData(); refreshVirtualScroll();
+            }
+        }
+
+        function deleteStudentProfileInline(name) {
+            if(confirm(`Erase logs for ${name}?`)) {
+                data[currentClass][currentSubject][currentSubSubject].students = data[currentClass][currentSubject][currentSubSubject].students.filter(s => s.name.toLowerCase() !== name.toLowerCase());
+                saveData(); refreshVirtualScroll();
+            }
+        }
+
+        function toggleUncheckedFilter() {
+            filterUncheckedOnly = !filterUncheckedOnly;
+            document.getElementById("uncheckFilterBtn").innerText = filterUncheckedOnly ? "📋 View Full Roster" : "⚠️ Filter Unchecked";
+            refreshVirtualScroll();
+        }
+
+        function toggleVoiceRecognition() {
+            if(isListening) { stopVoiceEngine(); return; }
+            window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(!window.SpeechRecognition) return;
+            
+            recognition = new window.SpeechRecognition(); recognition.continuous = true; recognition.interimResults = false;
+            recognition.onstart = () => { isListening = true; document.getElementById("voiceBtn").className = "voice-btn voice-active"; document.getElementById("voiceStatus").style.display = "block"; };
+            recognition.onresult = (event) => {
+                let textSpoken = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                let today = getTodayString(); let matchFound = false;
+                data[currentClass][currentSubject][currentSubSubject].students.forEach(s => {
+                    if(textSpoken.includes(s.name.toLowerCase()) && !s.dates.includes(today)) { s.dates.push(today); matchFound = true; }
+                });
+                if(matchFound) { playSound('check'); saveData(); refreshVirtualScroll(); }
+            };
+            recognition.onend = () => stopVoiceEngine(); recognition.start();
+        }
+
+        function stopVoiceEngine() { isListening = false; document.getElementById("voiceBtn").className = "voice-btn"; document.getElementById("voiceStatus").style.display = "none"; if(recognition) { recognition.abort(); recognition = null; } }
+
+        function toggleNestedCalendarWidget() {
+            let box = document.getElementById("nestedCalendarBox"); if(box.style.display === "block") { box.style.display = "none"; return; }
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let allDates = new Set(); students.forEach(s => s.dates.forEach(d => allDates.add(d)));
+            box.innerHTML = "<h4 style='margin:0 0 10px 0;'>Select Archive Context:</h4>";
+            let select = document.createElement("select"); select.innerHTML = "<option value=''>-- Pick Date --</option>";
+            Array.from(allDates).forEach(d => { let opt = document.createElement("option"); opt.value = d; opt.innerText = d; select.appendChild(opt); });
+            let out = document.createElement("div"); out.style.marginTop = "10px";
+            select.onchange = () => {
+                let checked = [], unchecked = []; students.forEach(s => s.dates.includes(select.value) ? checked.push(s.name) : unchecked.push(s.name));
+                out.innerHTML = `<p style='color:#10b981;'>✔️ Done: ${checked.join(", ")}</p><p style='color:#ef4444;'>❌ Pending: ${unchecked.join(", ")}</p>`;
+            };
+            box.appendChild(select); box.appendChild(out); box.style.display = "block";
+        }
+
+        function toggleChapterRankingWidget() {
+            let box = document.getElementById("rankingBox"); if(box.style.display === "block") { box.style.display = "none"; return; }
+            let ranks = (data[currentClass][currentSubject][currentSubSubject].students || []).map(s => ({name: s.name, points: s.dates.length})).sort((a,b) => b.points - a.points);
+            box.innerHTML = `<h3>🏆 Chapter Leaderboard</h3>`;
+            ranks.slice(0, 5).forEach((item, idx) => { box.innerHTML += `<div class='rankItem'>🥇 Rank ${idx+1}: ${item.name} (${item.points} times)</div>`; });
+            box.style.display = "block";
+        }
+
+        // AUTO-LOGIN INITIALIZER ENGINE
+        window.onload = function() {
+            let autoUser = localStorage.getItem("autoLoginUser");
+            let autoPass = localStorage.getItem("autoLoginPass");
+            
+            if (autoUser && autoPass) {
+                document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
+                
+                db.collection("teachers_pwd").doc(autoUser).get()
+                    .then((userDoc) => {
+                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
+                            activeCloudUser = autoUser;
+                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                            setupRealtimeListener(activeCloudUser);
+                            goHome();
+                        } else {
+                            showPage("login");
+                            document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
+                        }
+                    }).catch(() => {
+                        showPage("login");
+                    });
+            } else {
+                showPage("login");
+            }
+
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => stream.getTracks().forEach(t => t.stop()))
+                .catch(e => console.log("Native permissions initialized"));
+            }
+        };
+    </script>
 </body>
 </html>
