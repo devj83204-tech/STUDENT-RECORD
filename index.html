@@ -8,6 +8,8 @@
     <!-- Firebase Legacy Architecture Frameworks -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase Auth SDK added for Phone OTP Support -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     
     <!-- Client PDF Component -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -121,15 +123,26 @@
 
     <button class="modeToggle" onclick="toggleMode()">🌓 Toggle Theme</button>
 
-    <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
+    <!-- 🌐 SECTION 1: LOGIN TERMINAL (UPDATED FOR OTP) -->
     <div id="login" class="page active">
         <div class="center" style="margin-top: 80px;">
             <h1 style="font-size:36px; font-weight: 800; letter-spacing:-0.5px; margin-bottom: 30px; background: linear-gradient(to right, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">STUDENT RECORD APP</h1>
             <div class="auth-container">
-                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up Page</h2>
-                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID">
-                <input type="password" id="teacherPassword" placeholder="Enter Secure Password">
-                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleCloudAuth()">Create or Login Account ➔</button>
+                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">📱 Mobile OTP Login</h2>
+                
+                <!-- STEP 1: PHONE NUMBER INPUT -->
+                <div id="phoneStep">
+                    <input type="tel" id="userPhoneNumber" placeholder="+91 9876543210 (with country code)">
+                    <div id="recaptcha-container" style="margin-top:10px;"></div>
+                    <button class="primary" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="sendOTP()">Send OTP 📲</button>
+                </div>
+
+                <!-- STEP 2: OTP INPUT -->
+                <div id="otpStep" style="display: none;">
+                    <input type="number" id="otpCode" placeholder="Enter 6-digit OTP Code">
+                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="verifyOTP()">Verify OTP & Login ➔</button>
+                    <button class="backBtn" style="width: 100%; padding: 10px; margin-top: 6px;" onclick="resetAuthFlow()">⬅ Change Phone Number</button>
+                </div>
             </div>
         </div>
     </div>
@@ -249,6 +262,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
 
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
@@ -257,6 +271,7 @@
         let activeCloudUser = "";
         let audioCtx = null;
         let liveSubscriptionUnsubscribe = null;
+        let confirmationResultObj = null;
 
         function getTodayString() {
             const d = new Date();
@@ -332,16 +347,21 @@
             } catch(e) { return 0; }
         }
 
-        function setupRealtimeListener(userDocId) {
+        // CONNECTS CLOUD STORAGE AUTOMATICALLY BY PHONE NUMBER
+        function setupRealtimeListener(userPhoneDocId) {
             if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); }
             document.getElementById("cloudStatus").innerText = "🔄 Establishing Live Sync...";
             
-            liveSubscriptionUnsubscribe = db.collection("teachers_pwd").doc(userDocId)
+            // Replaces username logic with Phone Number document reference
+            liveSubscriptionUnsubscribe = db.collection("teachers_pwd").doc(userPhoneDocId)
                 .onSnapshot((doc) => {
                     if (doc.exists) {
                         data = doc.data().schoolData || {};
                         document.getElementById("cloudStatus").innerText = "☁️ Realtime Sync: Active";
                         refreshActiveInterfaceViewports();
+                    } else {
+                        // Create initial record if first time user
+                        db.collection("teachers_pwd").doc(userPhoneDocId).set({ schoolData: {} });
                     }
                 }, (error) => {
                     document.getElementById("cloudStatus").innerText = "⚠️ Sync Error Lockout";
@@ -378,55 +398,82 @@
         function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
-        function handleCloudAuth() {
-            let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
-            let pass = document.getElementById("teacherPassword").value.trim();
-            if(!user || !pass) return;
-            
-            document.getElementById("cloudStatus").innerText = "🔄 Authentication Pending...";
-            
-            db.collection("teachers_pwd").doc(user).get()
-                .then((userDoc) => {
-                    if (userDoc.exists) {
-                        if (userDoc.data().accountPassword === pass) {
-                            activeCloudUser = user;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            localStorage.setItem("autoLoginUser", activeCloudUser);
-                            localStorage.setItem("autoLoginPass", pass);
-                            
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            alert("❌ Credentials mismatch.");
-                        }
-                    } else {
-                        if (confirm(`User node "${user}" does not exist. Initialize storage gateway?`)) {
-                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
-                            .then(() => {
-                                activeCloudUser = user;
-                                sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                                localStorage.setItem("autoLoginUser", activeCloudUser);
-                                localStorage.setItem("autoLoginPass", pass);
-                                
-                                setupRealtimeListener(activeCloudUser);
-                                goHome();
-                            });
-                        }
-                    }
+        // 📲 PHONE NUMBER OTP AUTHENTICATION ENGINE
+        function initRecaptcha() {
+            if(!window.recaptchaVerifier) {
+                window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                    'size': 'invisible'
                 });
+            }
+        }
+
+        function sendOTP() {
+            let phone = document.getElementById("userPhoneNumber").value.trim();
+            if (!phone) {
+                alert("Please enter a valid phone number with country code (e.g., +919876543210)");
+                return;
+            }
+            if(!phone.startsWith("+")) {
+                alert("Please include country code! Example: +919876543210");
+                return;
+            }
+
+            initRecaptcha();
+            document.getElementById("cloudStatus").innerText = "🔄 Requesting OTP...";
+
+            auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+                .then((confirmationResult) => {
+                    confirmationResultObj = confirmationResult;
+                    document.getElementById("phoneStep").style.display = "none";
+                    document.getElementById("otpStep").style.display = "block";
+                    document.getElementById("cloudStatus").innerText = "📩 OTP Sent Successfully";
+                })
+                .catch((error) => {
+                    alert("Error sending OTP: " + error.message);
+                    document.getElementById("cloudStatus").innerText = "⚠️ OTP Error";
+                    if(window.recaptchaVerifier) { window.recaptchaVerifier.render().then(widgetId => grecaptcha.reset(widgetId)); }
+                });
+        }
+
+        function verifyOTP() {
+            let code = document.getElementById("otpCode").value.trim();
+            if (!code || code.length < 6) {
+                alert("Please enter valid 6-digit OTP code.");
+                return;
+            }
+
+            document.getElementById("cloudStatus").innerText = "🔄 Verifying OTP...";
+
+            confirmationResultObj.confirm(code)
+                .then((result) => {
+                    let userPhone = result.user.phoneNumber;
+                    activeCloudUser = userPhone;
+                    
+                    document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                    setupRealtimeListener(activeCloudUser);
+                    goHome();
+                })
+                .catch((error) => {
+                    alert("Incorrect OTP: " + error.message);
+                    document.getElementById("cloudStatus").innerText = "❌ OTP Verification Failed";
+                });
+        }
+
+        function resetAuthFlow() {
+            document.getElementById("otpStep").style.display = "none";
+            document.getElementById("phoneStep").style.display = "block";
+            document.getElementById("otpCode").value = "";
         }
 
         function logoutTeacher() {
             if (confirm("Are you sure you want to disconnect from this account node?")) {
-                if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-                sessionStorage.removeItem("pwdCloudUser"); 
-                localStorage.removeItem("autoLoginUser");
-                localStorage.removeItem("autoLoginPass");
-                activeCloudUser = ""; 
-                data = {};
-                showPage("login");
+                auth.signOut().then(() => {
+                    if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
+                    activeCloudUser = ""; 
+                    data = {};
+                    resetAuthFlow();
+                    showPage("login");
+                });
             }
         }
 
@@ -601,16 +648,13 @@
 
         // 🚀 HIGHLY COMPATIBLE EMBEDDED ENGINE FOR WEBVIEW/APK ENVIRONMENT
         function savePdfUniversally(doc, filename) {
-            // Android APK / WebView / Custom Native Wrapper detection hook
             if (navigator.userAgent.match(/Android/i) || navigator.userAgent.match(/WebView/i)) {
                 try {
-                    // Base64 configuration processing stream injection
                     const stringBase64 = doc.output('datauristring');
                     const pdfWindow = window.open();
                     if (pdfWindow) {
                         pdfWindow.document.write("<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='" + stringBase64 + "'></iframe>");
                     } else {
-                        // Embedded Fallback in case Window allocation fails inside WebKit core
                         const dlAnchor = document.createElement("a");
                         dlAnchor.href = stringBase64; dlAnchor.download = filename;
                         document.body.appendChild(dlAnchor); dlAnchor.click();
@@ -621,7 +665,6 @@
                 }
                 return;
             }
-            // Standard Desktop browser configuration execution layer
             doc.save(filename);
         }
 
@@ -787,32 +830,19 @@
             box.style.display = "block";
         }
 
-        // AUTO-LOGIN INITIALIZER ENGINE
+        // PERSISTENT AUTHENTICATION STATE INITIALIZER
         window.onload = function() {
-            let autoUser = localStorage.getItem("autoLoginUser");
-            let autoPass = localStorage.getItem("autoLoginPass");
-            
-            if (autoUser && autoPass) {
-                document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
-                
-                db.collection("teachers_pwd").doc(autoUser).get()
-                    .then((userDoc) => {
-                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
-                            activeCloudUser = autoUser;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            showPage("login");
-                            document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
-                        }
-                    }).catch(() => {
-                        showPage("login");
-                    });
-            } else {
-                showPage("login");
-            }
+            auth.onAuthStateChanged((user) => {
+                if (user && user.phoneNumber) {
+                    activeCloudUser = user.phoneNumber;
+                    document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                    document.getElementById("cloudStatus").innerText = "☁️ Authenticated via OTP";
+                    setupRealtimeListener(activeCloudUser);
+                    goHome();
+                } else {
+                    showPage("login");
+                }
+            });
 
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
