@@ -8,7 +8,6 @@
     <!-- Firebase Legacy Architecture Frameworks -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     
     <!-- Client PDF & Excel Sheet Parsers -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -476,26 +475,10 @@
         <div class="center" style="margin-top: 80px;">
             <h1 style="font-size:36px; font-weight: 800; letter-spacing:-0.5px; margin-bottom: 30px; background: linear-gradient(to right, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">STUDENT RECORD APP</h1>
             <div class="auth-container">
-                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up with Mobile OTP</h2>
-
-                <!-- STEP 1: Enter phone number -->
-                <div id="phoneEntryStep">
-                    <input type="tel" id="teacherPhone" placeholder="Mobile Number e.g. 9876543210" maxlength="10">
-                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="sendOtpToPhone()">Send OTP ➔</button>
-                </div>
-
-                <!-- STEP 2: Enter OTP (hidden until OTP sent) -->
-                <div id="otpEntryStep" style="display:none;">
-                    <p style="color: var(--text-muted); font-size:13px; margin-bottom:10px;">Enter the 6-digit code sent to <b id="otpSentToNumber"></b></p>
-                    <input type="tel" id="otpCode" placeholder="Enter 6-digit OTP" maxlength="6">
-                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="verifyOtpAndLogin()">Verify & Login ➔</button>
-                    <button class="backBtn" style="width: 100%; margin-top: 8px;" onclick="resetOtpFlow()">⬅ Change Number</button>
-                </div>
-
-                <div id="otpStatusMsg" style="margin-top:14px; font-size:13px; color:#f59e0b; min-height:18px;"></div>
-
-                <!-- Required invisible container for Firebase's reCAPTCHA verification -->
-                <div id="recaptcha-container"></div>
+                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up Page</h2>
+                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID">
+                <input type="password" id="teacherPassword" placeholder="Enter Secure Password">
+                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleCloudAuth()">Create or Login Account ➔</button>
             </div>
         </div>
     </div>
@@ -645,11 +628,6 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        const auth = firebase.auth();
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); // keeps user logged in across app restarts
-
-        let confirmationResult = null; // holds pending OTP confirmation between "send" and "verify" steps
-        let recaptchaVerifier = null;
 
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
@@ -780,99 +758,54 @@
         function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        // ============================================================
-        // 📱 MOBILE OTP AUTHENTICATION (Firebase Phone Auth)
-        // ============================================================
-
-        function setupRecaptcha() {
-            // Only create it once
-            if (recaptchaVerifier) return recaptchaVerifier;
-            recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                'size': 'invisible'
-            });
-            return recaptchaVerifier;
-        }
-
-        function normalizePhoneToE164(rawNumber) {
-            // Strips spaces/dashes, assumes India (+91) if a bare 10-digit number is entered.
-            let digits = rawNumber.replace(/\D/g, '');
-            if (digits.length === 10) return "+91" + digits;
-            if (digits.startsWith("91") && digits.length === 12) return "+" + digits;
-            if (rawNumber.trim().startsWith("+")) return rawNumber.trim();
-            return "+" + digits;
-        }
-
-        function sendOtpToPhone() {
-            let rawPhone = document.getElementById("teacherPhone").value.trim();
-            if (!rawPhone) { alert("Please enter your mobile number."); return; }
-
-            let phoneNumber = normalizePhoneToE164(rawPhone);
-            let statusEl = document.getElementById("otpStatusMsg");
-            statusEl.innerText = "🔄 Sending OTP...";
-
-            let appVerifier = setupRecaptcha();
-
-            auth.signInWithPhoneNumber(phoneNumber, appVerifier)
-                .then((result) => {
-                    confirmationResult = result;
-                    document.getElementById("otpSentToNumber").innerText = phoneNumber;
-                    document.getElementById("phoneEntryStep").style.display = "none";
-                    document.getElementById("otpEntryStep").style.display = "block";
-                    statusEl.innerText = "✅ OTP sent. Check your SMS inbox.";
-                })
-                .catch((error) => {
-                    console.log("OTP send error:", error);
-                    statusEl.innerText = "❌ Could not send OTP: " + error.message;
-                    // Reset recaptcha so the user can retry
-                    if (recaptchaVerifier) { recaptchaVerifier.render().then((widgetId) => { grecaptcha.reset(widgetId); }); }
-                });
-        }
-
-        function verifyOtpAndLogin() {
-            let code = document.getElementById("otpCode").value.trim();
-            if (!code || !confirmationResult) { alert("Please enter the OTP sent to your phone."); return; }
-
-            let statusEl = document.getElementById("otpStatusMsg");
-            statusEl.innerText = "🔄 Verifying OTP...";
-
-            confirmationResult.confirm(code)
-                .then((result) => {
-                    let firebaseUser = result.user; // has .uid and .phoneNumber
-                    activeCloudUser = firebaseUser.phoneNumber; // used as the Firestore doc id, same as before
-
-                    document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                    statusEl.innerText = "";
-
-                    // Create the teacher's data node the first time they log in
-                    db.collection("teachers_pwd").doc(activeCloudUser).get().then((docSnap) => {
-                        if (!docSnap.exists) {
-                            db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: {} });
+        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
+        function handleCloudAuth() {
+            let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
+            let pass = document.getElementById("teacherPassword").value.trim();
+            if(!user || !pass) return;
+            
+            document.getElementById("cloudStatus").innerText = "🔄 Authentication Pending...";
+            
+            db.collection("teachers_pwd").doc(user).get()
+                .then((userDoc) => {
+                    if (userDoc.exists) {
+                        if (userDoc.data().accountPassword === pass) {
+                            activeCloudUser = user;
+                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                            localStorage.setItem("autoLoginUser", activeCloudUser);
+                            localStorage.setItem("autoLoginPass", pass);
+                            
+                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                            setupRealtimeListener(activeCloudUser);
+                            goHome();
+                        } else {
+                            alert("❌ Credentials mismatch.");
                         }
-                        setupRealtimeListener(activeCloudUser);
-                        goHome();
-                    });
-                })
-                .catch((error) => {
-                    console.log("OTP verify error:", error);
-                    statusEl.innerText = "❌ Incorrect OTP. Please try again.";
+                    } else {
+                        if (confirm(`User node "${user}" does not exist. Initialize storage gateway?`)) {
+                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
+                            .then(() => {
+                                activeCloudUser = user;
+                                sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                                localStorage.setItem("autoLoginUser", activeCloudUser);
+                                localStorage.setItem("autoLoginPass", pass);
+                                
+                                setupRealtimeListener(activeCloudUser);
+                                goHome();
+                            });
+                        }
+                    }
                 });
-        }
-
-        function resetOtpFlow() {
-            confirmationResult = null;
-            document.getElementById("otpCode").value = "";
-            document.getElementById("otpStatusMsg").innerText = "";
-            document.getElementById("phoneEntryStep").style.display = "block";
-            document.getElementById("otpEntryStep").style.display = "none";
         }
 
         function logoutTeacher() {
             if (confirm("Are you sure you want to disconnect from this account node?")) {
                 if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-                auth.signOut();
+                sessionStorage.removeItem("pwdCloudUser"); 
+                localStorage.removeItem("autoLoginUser");
+                localStorage.removeItem("autoLoginPass");
                 activeCloudUser = ""; 
                 data = {};
-                resetOtpFlow();
                 showPage("login");
             }
         }
@@ -1685,20 +1618,30 @@
         }
 
         window.onload = function() {
-            document.getElementById("cloudStatus").innerText = "🔄 Checking session...";
-
-            // Firebase Auth restores the phone-verified session automatically (LOCAL persistence)
-            auth.onAuthStateChanged((firebaseUser) => {
-                if (firebaseUser) {
-                    activeCloudUser = firebaseUser.phoneNumber;
-                    document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                    setupRealtimeListener(activeCloudUser);
-                    goHome();
-                } else {
-                    document.getElementById("cloudStatus").innerText = "☁️ Cloud Node Status Offline";
-                    showPage("login");
-                }
-            });
+            let autoUser = localStorage.getItem("autoLoginUser");
+            let autoPass = localStorage.getItem("autoLoginPass");
+            
+            if (autoUser && autoPass) {
+                document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
+                
+                db.collection("teachers_pwd").doc(autoUser).get()
+                    .then((userDoc) => {
+                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
+                            activeCloudUser = autoUser;
+                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                            setupRealtimeListener(activeCloudUser);
+                            goHome();
+                        } else {
+                            showPage("login");
+                            document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
+                        }
+                    }).catch(() => {
+                        showPage("login");
+                    });
+            } else {
+                showPage("login");
+            }
 
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
