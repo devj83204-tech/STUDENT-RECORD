@@ -8,6 +8,7 @@
     <!-- Firebase Legacy Architecture Frameworks -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     
     <!-- Client PDF & Excel Sheet Parsers -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -381,6 +382,89 @@
         }
         
         .progress-tag { background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-size: 11px; padding: 3px 8px; border-radius: 8px; font-weight: bold; margin-top: 4px; display: inline-block; }
+
+        /* 📢 BULK WHATSAPP BROADCAST STYLES */
+        .bulk-info-banner {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-left: 4px solid var(--success);
+            padding: 14px 16px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            line-height: 1.55;
+            margin: 16px 0 20px 0;
+        }
+        .bulk-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+        .bulk-toolbar button { flex: 1; min-width: 170px; margin: 0; }
+        .bulk-progress-box {
+            background: rgba(30, 41, 59, 0.65);
+            border: 1px solid var(--border-dark);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .bulk-progress-label { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+        .bulk-progress-track { height: 10px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; }
+        .bulk-progress-fill { height: 100%; background: linear-gradient(to right, var(--success), #22c55e); transition: width 0.35s ease; }
+        .bulk-progress-done { font-size: 15px; font-weight: 800; color: var(--success); text-align: center; padding: 6px 0; }
+
+        .bulk-student-row {
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px solid var(--border-dark);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: border-color 0.2s ease;
+        }
+        .bulk-student-row:hover { border-color: rgba(34, 197, 94, 0.4); }
+        .bulk-checkbox-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .bulk-checkbox-wrap input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--success); margin: 0; cursor: pointer; flex-shrink: 0; }
+        .bulk-checkbox-wrap input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
+        .bulk-student-name { font-size: 15px; font-weight: 700; }
+        .bulk-phone-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 30px; }
+        .bulk-phone-value { font-size: 13px; color: #38bdf8; font-weight: 600; }
+        .bulk-phone-missing { font-size: 12px; color: var(--danger); font-weight: 700; }
+        .bulk-phone-input { width: auto; flex: 1; min-width: 160px; margin: 0; padding: 10px 12px; font-size: 13px; }
+        .bulk-save-phone-btn { padding: 9px 16px; margin: 0; font-size: 12px; }
+        .bulk-subject-count { font-size: 12px; color: var(--text-muted); padding-left: 30px; }
+
+        .light-mode .bulk-student-row, .light-mode .bulk-progress-box { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+        .light-mode .bulk-info-banner { background: rgba(16, 185, 129, 0.08) !important; color: #0f172a !important; border-color: rgba(16,185,129,0.3) !important; }
+
+        /* 📱 RESPONSIVE MOBILE TUNING — KEEPS ALL EXISTING FEATURES, JUST ADAPTS LAYOUT */
+        @media (max-width: 640px) {
+            .page { padding: 16px 14px 100px 14px; }
+            .auth-container { margin: 24px auto; padding: 30px 20px; border-radius: var(--radius-lg); max-width: 100%; }
+            h1 { font-size: clamp(20px, 6vw, 28px) !important; }
+            h2 { font-size: clamp(17px, 5vw, 21px) !important; }
+            .icon-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+            .icon-box { min-height: 118px; padding: 16px 12px; }
+            button { padding: 11px 15px; font-size: 13px; margin: 4px; }
+            .student-actions button { font-size: 12px; padding: 9px 0; }
+            .student-row { height: auto; min-height: 130px; }
+            #virtual-scroll-viewport { height: 400px; }
+            .modeToggle { top: 10px; right: 10px; padding: 8px 12px; font-size: 12px; }
+            #cloudStatus { bottom: 10px; right: 10px; left: 10px; text-align: center; font-size: 11px; padding: 8px 14px; }
+            .bulk-toolbar button { min-width: 100%; }
+            .bulk-phone-row, .bulk-subject-count { padding-left: 0; }
+            .search-profile-box, .stats-widget, .bulk-info-banner, .bulk-progress-box { padding: 15px; }
+            input, select { font-size: 14px; padding: 12px 14px; }
+        }
+        @media (max-width: 380px) {
+            .icon-grid { grid-template-columns: 1fr 1fr; }
+            .student-actions { flex-wrap: wrap; }
+            .student-actions button { flex: 1 1 40%; }
+        }
+        @media (min-width: 641px) {
+            .bulk-student-row { flex-direction: row; align-items: center; flex-wrap: wrap; }
+            .bulk-checkbox-wrap { flex: 1 1 220px; }
+            .bulk-phone-row { padding-left: 0; flex: 1 1 260px; }
+            .bulk-subject-count { padding-left: 0; margin-left: auto; }
+        }
     </style>
 </head>
 <body>
@@ -392,10 +476,26 @@
         <div class="center" style="margin-top: 80px;">
             <h1 style="font-size:36px; font-weight: 800; letter-spacing:-0.5px; margin-bottom: 30px; background: linear-gradient(to right, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">STUDENT RECORD APP</h1>
             <div class="auth-container">
-                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up Page</h2>
-                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID">
-                <input type="password" id="teacherPassword" placeholder="Enter Secure Password">
-                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleCloudAuth()">Create or Login Account ➔</button>
+                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up with Mobile OTP</h2>
+
+                <!-- STEP 1: Enter phone number -->
+                <div id="phoneEntryStep">
+                    <input type="tel" id="teacherPhone" placeholder="Mobile Number e.g. 9876543210" maxlength="10">
+                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="sendOtpToPhone()">Send OTP ➔</button>
+                </div>
+
+                <!-- STEP 2: Enter OTP (hidden until OTP sent) -->
+                <div id="otpEntryStep" style="display:none;">
+                    <p style="color: var(--text-muted); font-size:13px; margin-bottom:10px;">Enter the 6-digit code sent to <b id="otpSentToNumber"></b></p>
+                    <input type="tel" id="otpCode" placeholder="Enter 6-digit OTP" maxlength="6">
+                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="verifyOtpAndLogin()">Verify & Login ➔</button>
+                    <button class="backBtn" style="width: 100%; margin-top: 8px;" onclick="resetOtpFlow()">⬅ Change Number</button>
+                </div>
+
+                <div id="otpStatusMsg" style="margin-top:14px; font-size:13px; color:#f59e0b; min-height:18px;"></div>
+
+                <!-- Required invisible container for Firebase's reCAPTCHA verification -->
+                <div id="recaptcha-container"></div>
             </div>
         </div>
     </div>
@@ -440,8 +540,8 @@
         <div style="background: rgba(59, 130, 246, 0.1); padding: 18px; border-radius: 16px; margin-bottom: 24px; text-align: center; border: 1px dashed rgba(59,130,246,0.3);">
             <h4 style="margin: 0 0 10px 0; color:#eab308; font-size:15px;">📊 Matrix Data Compilation Engine</h4>
             <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center;">
-                <!-- REMOVED THE AUTO-SENDER WHATSAPP BUTTON AS REQUESTED -->
                 <button class="pdf-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="generateCompleteClassMatrixPDF_Option2()">📄 Download Full Class Matrix PDF</button>
+                <button class="whatsapp-btn" style="font-size: 14px; padding: 12px 24px; border-radius:10px;" onclick="openBulkBroadcastPage()">📢 Bulk WhatsApp to All Parents</button>
             </div>
         </div>
 
@@ -451,6 +551,27 @@
         </div>
         <div class="skeleton-wrapper" id="subjectSkeleton"><div class="skeleton-box"></div></div>
         <div class="icon-grid" id="subjectList"></div>
+    </div>
+
+    <!-- 📢 SECTION 3B: BULK WHATSAPP BROADCAST TERMINAL -->
+    <div id="bulkBroadcastPage" class="page">
+        <button class="backBtn" onclick="backToSubjects()">⬅ Back to Subjects</button>
+        <h2 style="margin-top: 20px; font-weight:800;">📢 Bulk WhatsApp Broadcast</h2>
+        <p id="bulkBroadcastSubtitle" style="color: var(--text-muted); font-size:13px; margin-top:-6px;"></p>
+
+        <div class="bulk-info-banner">
+            ℹ️ Every parent gets a message with <b>only their own child's</b> full subject-wise report for this class — not the whole class list. WhatsApp only lets a page pre-fill the message; you still tap <b>Send</b> once inside each opened chat, then come back here and tap "Open Next Parent".
+        </div>
+
+        <div class="bulk-toolbar">
+            <button class="primary" onclick="toggleSelectAllBulk()">☑️ Select / Deselect All</button>
+            <button class="whatsapp-btn" onclick="startBulkBroadcast()">🚀 Start Broadcast</button>
+        </div>
+
+        <div id="bulkProgressBox" class="bulk-progress-box" style="display:none;"></div>
+
+        <div class="skeleton-wrapper" id="bulkSkeleton"><div class="skeleton-box"></div><div class="skeleton-box"></div><div class="skeleton-box"></div></div>
+        <div id="bulkStudentListContainer"></div>
     </div>
 
     <!-- 📖 SECTION 4: CHAPTERS TERMINAL -->
@@ -524,6 +645,11 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); // keeps user logged in across app restarts
+
+        let confirmationResult = null; // holds pending OTP confirmation between "send" and "verify" steps
+        let recaptchaVerifier = null;
 
         let data = {}; 
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
@@ -654,54 +780,99 @@
         function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
-        function handleCloudAuth() {
-            let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
-            let pass = document.getElementById("teacherPassword").value.trim();
-            if(!user || !pass) return;
-            
-            document.getElementById("cloudStatus").innerText = "🔄 Authentication Pending...";
-            
-            db.collection("teachers_pwd").doc(user).get()
-                .then((userDoc) => {
-                    if (userDoc.exists) {
-                        if (userDoc.data().accountPassword === pass) {
-                            activeCloudUser = user;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            localStorage.setItem("autoLoginUser", activeCloudUser);
-                            localStorage.setItem("autoLoginPass", pass);
-                            
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            alert("❌ Credentials mismatch.");
-                        }
-                    } else {
-                        if (confirm(`User node "${user}" does not exist. Initialize storage gateway?`)) {
-                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
-                            .then(() => {
-                                activeCloudUser = user;
-                                sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                                localStorage.setItem("autoLoginUser", activeCloudUser);
-                                localStorage.setItem("autoLoginPass", pass);
-                                
-                                setupRealtimeListener(activeCloudUser);
-                                goHome();
-                            });
-                        }
-                    }
+        // ============================================================
+        // 📱 MOBILE OTP AUTHENTICATION (Firebase Phone Auth)
+        // ============================================================
+
+        function setupRecaptcha() {
+            // Only create it once
+            if (recaptchaVerifier) return recaptchaVerifier;
+            recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                'size': 'invisible'
+            });
+            return recaptchaVerifier;
+        }
+
+        function normalizePhoneToE164(rawNumber) {
+            // Strips spaces/dashes, assumes India (+91) if a bare 10-digit number is entered.
+            let digits = rawNumber.replace(/\D/g, '');
+            if (digits.length === 10) return "+91" + digits;
+            if (digits.startsWith("91") && digits.length === 12) return "+" + digits;
+            if (rawNumber.trim().startsWith("+")) return rawNumber.trim();
+            return "+" + digits;
+        }
+
+        function sendOtpToPhone() {
+            let rawPhone = document.getElementById("teacherPhone").value.trim();
+            if (!rawPhone) { alert("Please enter your mobile number."); return; }
+
+            let phoneNumber = normalizePhoneToE164(rawPhone);
+            let statusEl = document.getElementById("otpStatusMsg");
+            statusEl.innerText = "🔄 Sending OTP...";
+
+            let appVerifier = setupRecaptcha();
+
+            auth.signInWithPhoneNumber(phoneNumber, appVerifier)
+                .then((result) => {
+                    confirmationResult = result;
+                    document.getElementById("otpSentToNumber").innerText = phoneNumber;
+                    document.getElementById("phoneEntryStep").style.display = "none";
+                    document.getElementById("otpEntryStep").style.display = "block";
+                    statusEl.innerText = "✅ OTP sent. Check your SMS inbox.";
+                })
+                .catch((error) => {
+                    console.log("OTP send error:", error);
+                    statusEl.innerText = "❌ Could not send OTP: " + error.message;
+                    // Reset recaptcha so the user can retry
+                    if (recaptchaVerifier) { recaptchaVerifier.render().then((widgetId) => { grecaptcha.reset(widgetId); }); }
                 });
+        }
+
+        function verifyOtpAndLogin() {
+            let code = document.getElementById("otpCode").value.trim();
+            if (!code || !confirmationResult) { alert("Please enter the OTP sent to your phone."); return; }
+
+            let statusEl = document.getElementById("otpStatusMsg");
+            statusEl.innerText = "🔄 Verifying OTP...";
+
+            confirmationResult.confirm(code)
+                .then((result) => {
+                    let firebaseUser = result.user; // has .uid and .phoneNumber
+                    activeCloudUser = firebaseUser.phoneNumber; // used as the Firestore doc id, same as before
+
+                    document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                    statusEl.innerText = "";
+
+                    // Create the teacher's data node the first time they log in
+                    db.collection("teachers_pwd").doc(activeCloudUser).get().then((docSnap) => {
+                        if (!docSnap.exists) {
+                            db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: {} });
+                        }
+                        setupRealtimeListener(activeCloudUser);
+                        goHome();
+                    });
+                })
+                .catch((error) => {
+                    console.log("OTP verify error:", error);
+                    statusEl.innerText = "❌ Incorrect OTP. Please try again.";
+                });
+        }
+
+        function resetOtpFlow() {
+            confirmationResult = null;
+            document.getElementById("otpCode").value = "";
+            document.getElementById("otpStatusMsg").innerText = "";
+            document.getElementById("phoneEntryStep").style.display = "block";
+            document.getElementById("otpEntryStep").style.display = "none";
         }
 
         function logoutTeacher() {
             if (confirm("Are you sure you want to disconnect from this account node?")) {
                 if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-                sessionStorage.removeItem("pwdCloudUser"); 
-                localStorage.removeItem("autoLoginUser");
-                localStorage.removeItem("autoLoginPass");
+                auth.signOut();
                 activeCloudUser = ""; 
                 data = {};
+                resetOtpFlow();
                 showPage("login");
             }
         }
@@ -878,6 +1049,181 @@
             let waUrl = phone ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
             window.open(waUrl, '_blank');
         }
+
+        // ================== 📢 BULK WHATSAPP BROADCAST ENGINE ==================
+        // Aggregates every unique student across ALL subjects/chapters of a class,
+        // builds each parent's own subject-wise report, and queues WhatsApp sends
+        // one-by-one (WhatsApp Web requires a manual tap on Send per chat — this
+        // engine removes every other step so the teacher just taps Send + Next).
+        let bulkReportsData = [];
+        let bulkQueue = [];
+        let bulkQueueIndex = 0;
+
+        function buildClassStudentReports(className) {
+            let studentsMap = {};
+            let subjectsObj = data[className] || {};
+            for (let subject in subjectsObj) {
+                for (let chapter in subjectsObj[subject]) {
+                    let students = subjectsObj[subject][chapter].students || [];
+                    students.forEach(s => {
+                        let key = s.name.trim().toLowerCase();
+                        if (!studentsMap[key]) studentsMap[key] = { name: s.name, phone: s.parentPhone || "", subjects: {} };
+                        if (!studentsMap[key].phone && s.parentPhone) studentsMap[key].phone = s.parentPhone;
+                        if (!studentsMap[key].subjects[subject]) studentsMap[key].subjects[subject] = { totalEntries: 0, dates: [], chapters: [] };
+                        let subjRec = studentsMap[key].subjects[subject];
+                        subjRec.totalEntries += s.dates.length;
+                        s.dates.forEach(d => subjRec.dates.push(d));
+                        subjRec.chapters.push({ chapter: chapter, count: s.dates.length });
+                    });
+                }
+            }
+
+            return Object.values(studentsMap).sort((a, b) => a.name.localeCompare(b.name)).map(st => {
+                let subjectRecords = Object.keys(st.subjects).map(subName => {
+                    let subj = st.subjects[subName];
+                    let latestDate = "N/A";
+                    if (subj.dates.length > 0) { let sorted = [...subj.dates].sort(); latestDate = sorted[sorted.length - 1]; }
+                    return { subjectName: subName, totalEntries: subj.totalEntries, latestDate: latestDate, chapters: subj.chapters };
+                });
+                return { name: st.name, phone: st.phone, subjectRecords: subjectRecords, selected: !!st.phone };
+            });
+        }
+
+        function buildParentWhatsAppMessage(studentName, className, subjectRecords) {
+            let message = `*📊 STUDENT PROGRESS & ATTENDANCE REPORT*\n\n`;
+            message += `*Student Name:* ${studentName}\n`;
+            message += `*Class Node:* ${className}\n`;
+            message += `*Generated Date:* ${getTodayString()}\n\n`;
+            message += `--- *SUBJECT-WISE LOGS & LATEST CHECKS* ---\n`;
+
+            if (subjectRecords.length === 0) {
+                message += `No active subject records found yet.\n`;
+            } else {
+                subjectRecords.forEach((rec, idx) => {
+                    message += `\n*${idx + 1}. Subject:* ${rec.subjectName}\n`;
+                    message += `• *Latest Check Date:* ${rec.latestDate}\n`;
+                    message += `• *Total Verified Entries:* ${rec.totalEntries}\n`;
+                    if (rec.chapters.length > 0) {
+                        message += `• *Chapters:* ${rec.chapters.map(c => `${c.chapter} (${c.count})`).join(', ')}\n`;
+                    }
+                });
+            }
+
+            message += `\n_Please review your child's progress._`;
+            return message;
+        }
+
+        function openBulkBroadcastPage() {
+            showPage("bulkBroadcastPage");
+            document.getElementById("bulkBroadcastSubtitle").innerText = `Class: ${currentClass}`;
+            document.getElementById("bulkProgressBox").style.display = "none";
+            document.getElementById("bulkProgressBox").innerHTML = "";
+            triggerSkeletonLoader("bulkSkeleton", 400);
+            bulkReportsData = buildClassStudentReports(currentClass);
+            renderBulkStudentList();
+        }
+
+        function renderBulkStudentList() {
+            let container = document.getElementById("bulkStudentListContainer");
+            container.innerHTML = "";
+
+            if (bulkReportsData.length === 0) {
+                container.innerHTML = `<p style="color:#ef4444; text-align:center; margin-top:20px;">No students found in this class yet. Add students inside any chapter first.</p>`;
+                return;
+            }
+
+            bulkReportsData.forEach((st, idx) => {
+                let row = document.createElement("div");
+                row.className = "bulk-student-row";
+                let hasPhone = !!st.phone;
+                row.innerHTML = `
+                    <label class="bulk-checkbox-wrap">
+                        <input type="checkbox" ${st.selected ? "checked" : ""} ${hasPhone ? "" : "disabled"} onchange="toggleBulkStudentSelected(${idx}, this.checked)">
+                        <span class="bulk-student-name">${st.name}</span>
+                    </label>
+                    <div class="bulk-phone-row">
+                        ${hasPhone
+                            ? `<span class="bulk-phone-value">📱 ${st.phone}</span>`
+                            : `<span class="bulk-phone-missing">⚠️ No number saved</span>
+                               <input type="text" class="bulk-phone-input" placeholder="Add parent WhatsApp number" id="bulkPhoneInput_${idx}">
+                               <button class="primary bulk-save-phone-btn" onclick="saveBulkPhoneNumber(${idx})">Save</button>`
+                        }
+                    </div>
+                    <div class="bulk-subject-count">📚 ${st.subjectRecords.length} subject record(s)</div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function toggleBulkStudentSelected(idx, checked) {
+            bulkReportsData[idx].selected = checked;
+        }
+
+        function toggleSelectAllBulk() {
+            let anyUnselected = bulkReportsData.some(st => st.phone && !st.selected);
+            bulkReportsData.forEach(st => { if (st.phone) st.selected = anyUnselected; });
+            renderBulkStudentList();
+        }
+
+        function updateStudentPhoneAcrossClass(className, studentName, newPhone) {
+            let subjectsObj = data[className] || {};
+            let lowerName = studentName.trim().toLowerCase();
+            for (let subject in subjectsObj) {
+                for (let chapter in subjectsObj[subject]) {
+                    let students = subjectsObj[subject][chapter].students || [];
+                    students.forEach(s => { if (s.name.trim().toLowerCase() === lowerName) s.parentPhone = newPhone; });
+                }
+            }
+        }
+
+        function saveBulkPhoneNumber(idx) {
+            let input = document.getElementById(`bulkPhoneInput_${idx}`);
+            let phone = input.value.trim();
+            if (!phone) return;
+            let studentName = bulkReportsData[idx].name;
+            updateStudentPhoneAcrossClass(currentClass, studentName, phone);
+            bulkReportsData[idx].phone = phone;
+            bulkReportsData[idx].selected = true;
+            saveData();
+            renderBulkStudentList();
+        }
+
+        function startBulkBroadcast() {
+            bulkQueue = bulkReportsData.filter(st => st.selected && st.phone);
+            bulkQueueIndex = 0;
+            if (bulkQueue.length === 0) {
+                alert("⚠️ No parents selected, or none have a saved WhatsApp number yet. Add a number or select students first.");
+                return;
+            }
+            document.getElementById("bulkProgressBox").style.display = "block";
+            openNextBulkWhatsAppMessage();
+        }
+
+        function openNextBulkWhatsAppMessage() {
+            let box = document.getElementById("bulkProgressBox");
+            if (bulkQueueIndex >= bulkQueue.length) {
+                box.innerHTML = `<div class="bulk-progress-done">✅ Broadcast queue complete — ${bulkQueue.length} message(s) opened.</div>`;
+                return;
+            }
+            let student = bulkQueue[bulkQueueIndex];
+            let cleanPhone = student.phone.replace(/\D/g, '');
+            let message = buildParentWhatsAppMessage(student.name, currentClass, student.subjectRecords);
+            let waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
+
+            let percent = Math.round((bulkQueueIndex / bulkQueue.length) * 100);
+            box.innerHTML = `
+                <div class="bulk-progress-label">📤 Opened ${bulkQueueIndex + 1} of ${bulkQueue.length} — <b>${student.name}</b>'s parent</div>
+                <div class="bulk-progress-track"><div class="bulk-progress-fill" style="width:${percent}%;"></div></div>
+                <button class="whatsapp-btn" style="width:100%; margin-top:10px;" onclick="advanceBulkBroadcast()">➡️ Sent! Open Next Parent</button>
+            `;
+        }
+
+        function advanceBulkBroadcast() {
+            bulkQueueIndex++;
+            openNextBulkWhatsAppMessage();
+        }
+        // ================== END BULK WHATSAPP BROADCAST ENGINE ==================
 
         function addClass() {
             let name = document.getElementById("newClass").value.trim(); if (!name) return;
@@ -1339,30 +1685,20 @@
         }
 
         window.onload = function() {
-            let autoUser = localStorage.getItem("autoLoginUser");
-            let autoPass = localStorage.getItem("autoLoginPass");
-            
-            if (autoUser && autoPass) {
-                document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
-                
-                db.collection("teachers_pwd").doc(autoUser).get()
-                    .then((userDoc) => {
-                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
-                            activeCloudUser = autoUser;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            showPage("login");
-                            document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
-                        }
-                    }).catch(() => {
-                        showPage("login");
-                    });
-            } else {
-                showPage("login");
-            }
+            document.getElementById("cloudStatus").innerText = "🔄 Checking session...";
+
+            // Firebase Auth restores the phone-verified session automatically (LOCAL persistence)
+            auth.onAuthStateChanged((firebaseUser) => {
+                if (firebaseUser) {
+                    activeCloudUser = firebaseUser.phoneNumber;
+                    document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
+                    setupRealtimeListener(activeCloudUser);
+                    goHome();
+                } else {
+                    document.getElementById("cloudStatus").innerText = "☁️ Cloud Node Status Offline";
+                    showPage("login");
+                }
+            });
 
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
