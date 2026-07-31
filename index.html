@@ -530,7 +530,10 @@
 
         <div>
             <input type="text" id="newSubject" placeholder="Enter New Subject Field">
-            <button class="primary" style="width:100%; margin-top:6px;" onclick="addSubject()">Add Subject</button>
+            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                <button class="primary" style="flex:1; min-width:150px;" onclick="addSubjectDirect()" title="For subjects with no separate chapters, e.g. Science till Class 8">➕ Add Subject Only</button>
+                <button class="primary" style="flex:1; min-width:150px; background:#7c3aed;" onclick="addSubjectWithChapters()" title="For subjects divided into chapters, e.g. Physics/Chemistry/Biology inside Science">➕ Add Subject with Chapters</button>
+            </div>
         </div>
         <div class="skeleton-wrapper" id="subjectSkeleton"><div class="skeleton-box"></div></div>
         <div class="icon-grid" id="subjectList"></div>
@@ -541,10 +544,6 @@
         <button class="backBtn" onclick="backToSubjects()">⬅ Back to Subjects</button>
         <h2 style="margin-top: 20px; font-weight:800;">📢 Bulk WhatsApp Broadcast</h2>
         <p id="bulkBroadcastSubtitle" style="color: var(--text-muted); font-size:13px; margin-top:-6px;"></p>
-
-        <div class="bulk-info-banner">
-            ℹ️ Every parent gets a message with <b>only their own child's</b> full subject-wise report for this class — not the whole class list. WhatsApp only lets a page pre-fill the message; you still tap <b>Send</b> once inside each opened chat, then come back here and tap "Open Next Parent".
-        </div>
 
         <div class="bulk-toolbar">
             <button class="primary" onclick="toggleSelectAllBulk()">☑️ Select / Deselect All</button>
@@ -579,7 +578,12 @@
 
         <div class="stats-widget">📈 Submission Index Rate: <span id="statsChecked">0</span> / <span id="statsTotal">0</span> Checked</div>
 
-        <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+            <button class="primary" style="flex:1;" onclick="toggleAddStudentBox()">➕ Add Name</button>
+            <button class="primary" style="flex:1; background:#7c3aed;" onclick="toggleFeaturesBox()">⚙️ Features</button>
+        </div>
+
+        <div id="addStudentBox" style="display:none; background: rgba(255,255,255,0.03); padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
             <input type="text" id="studentNameInputField" placeholder="Student Name (e.g. Rahul)">
             <input type="text" id="parentPhoneInputField" placeholder="Parent WhatsApp Number (e.g. 919876543210)">
             <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
@@ -589,7 +593,7 @@
             </div>
         </div>
 
-        <div style="background: rgba(30,41,59,0.5); padding: 18px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+        <div id="featuresBox" style="display:none; background: rgba(30,41,59,0.5); padding: 18px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
             <input type="text" id="localSearchInput" placeholder="🔍 Filter live record roster index..." oninput="refreshVirtualScroll()">
             <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                 <button id="uncheckFilterBtn" class="toggleFilterBtn" onclick="toggleUncheckedFilter()">⚠️ Filter Unchecked</button>
@@ -1181,7 +1185,20 @@
             }
         }
 
-        function addSubject() {
+        function addSubjectDirect() {
+            // "Subject Only" mode — no chapter division needed (e.g. Science till Class 8).
+            // We still use the same data[class][subject][chapter] structure under the hood,
+            // but auto-create ONE chapter with the same name as the subject, so every other
+            // function (PDF, WhatsApp, search, ranking etc.) keeps working untouched.
+            let name = document.getElementById("newSubject").value.trim(); if (!name) return;
+            if (!data[currentClass][name]) data[currentClass][name] = {};
+            if (!data[currentClass][name][name]) data[currentClass][name][name] = { students: [] };
+            saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
+        }
+
+        function addSubjectWithChapters() {
+            // "Subject with Chapters" mode — old behaviour: subject created empty,
+            // teacher adds chapters (Physics, Chemistry, Biology...) inside it afterward.
             let name = document.getElementById("newSubject").value.trim(); if (!name) return;
             if (!data[currentClass][name]) data[currentClass][name] = {}; saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
         }
@@ -1189,16 +1206,25 @@
         function renderSubjects() {
             let list = document.getElementById("subjectList"); list.innerHTML = "";
             for (let sub in data[currentClass]) {
+                let chapterKeys = Object.keys(data[currentClass][sub]);
+                let isDirectSubject = (chapterKeys.length === 1 && chapterKeys[0] === sub);
+
                 let div = document.createElement("div"); div.className = "icon-box";
-                div.innerHTML = `<span>📘 <b>${sub}</b></span>`;
+                div.innerHTML = `<span>📘 <b>${sub}</b></span>${isDirectSubject ? '<span class="progress-tag">⚡ Direct</span>' : ''}`;
                 let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
                 del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop field ${sub}?`)) { delete data[currentClass][sub]; saveData(); renderSubjects(); } };
                 div.appendChild(del);
                 div.onclick = () => {
-                    currentSubject = sub; showPage("subSubjectPage");
-                    triggerSkeletonLoader("subSubjectSkeleton", 450);
-                    document.getElementById("subjectTitle").innerText = `${currentClass} ➔ ${sub}`;
-                    renderSubSubjects();
+                    currentSubject = sub;
+                    if (isDirectSubject) {
+                        // Skip the chapter list entirely — jump straight to the attendance sheet
+                        openChapterAttendanceSheet(sub);
+                    } else {
+                        showPage("subSubjectPage");
+                        triggerSkeletonLoader("subSubjectSkeleton", 450);
+                        document.getElementById("subjectTitle").innerText = `${currentClass} ➔ ${sub}`;
+                        renderSubSubjects();
+                    }
                 };
                 list.appendChild(div);
             }
@@ -1225,20 +1251,36 @@
                 let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
                 del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop segment ${subsub}?`)) { delete data[currentClass][currentSubject][subsub]; saveData(); renderSubSubjects(); } };
                 div.appendChild(del);
-                div.onclick = () => {
-                    currentSubSubject = subsub;
-                    document.getElementById("localSearchInput").value = ""; filterUncheckedOnly = false;
-                    document.getElementById("nestedCalendarBox").style.display = "none";
-                    document.getElementById("rankingBox").style.display = "none";
-                    showPage("studentPage");
-                    triggerSkeletonLoader("studentSkeleton", 500);
-                    document.getElementById("subSubjectTitle").innerText = `${currentClass} ➔ ${currentSubject} ➔ ${currentSubSubject}`;
-                    refreshVirtualScroll();
-                };
+                div.onclick = () => { openChapterAttendanceSheet(subsub); };
                 list.appendChild(div);
             }
         }
         function backToSubSubjects() { showPage("subSubjectPage"); }
+
+        // Shared by both entry points: a "Direct" subject (skips chapter list) and a normal chapter click.
+        function openChapterAttendanceSheet(subsub) {
+            currentSubSubject = subsub;
+            document.getElementById("localSearchInput").value = ""; filterUncheckedOnly = false;
+            document.getElementById("nestedCalendarBox").style.display = "none";
+            document.getElementById("rankingBox").style.display = "none";
+            document.getElementById("addStudentBox").style.display = "none";
+            document.getElementById("featuresBox").style.display = "none";
+            showPage("studentPage");
+            triggerSkeletonLoader("studentSkeleton", 500);
+            document.getElementById("subSubjectTitle").innerText = (currentSubject === currentSubSubject)
+                ? `${currentClass} ➔ ${currentSubject}`
+                : `${currentClass} ➔ ${currentSubject} ➔ ${currentSubSubject}`;
+            refreshVirtualScroll();
+        }
+
+        function toggleAddStudentBox() {
+            let box = document.getElementById("addStudentBox");
+            box.style.display = (box.style.display === "none") ? "block" : "none";
+        }
+        function toggleFeaturesBox() {
+            let box = document.getElementById("featuresBox");
+            box.style.display = (box.style.display === "none") ? "block" : "none";
+        }
 
         function addSingleStudentWithParent() {
             let nameInput = document.getElementById("studentNameInputField");
@@ -1329,7 +1371,8 @@
 
         function shareReportViaWhatsAppMatrix() {
             let today = getTodayString(); let students = data[currentClass][currentSubject][currentSubSubject].students || [];
-            let textBlock = `*📊 Attendance Tracking Update*\n\n*Class:* ${currentClass}\n*Subject:* ${currentSubject}\n*Chapter:* ${currentSubSubject}\n*Date:* ${today}\n\n`;
+            let chapterLine = (currentSubject === currentSubSubject) ? "" : `*Chapter:* ${currentSubSubject}\n`;
+            let textBlock = `*📊 Attendance Tracking Update*\n\n*Class:* ${currentClass}\n*Subject:* ${currentSubject}\n${chapterLine}*Date:* ${today}\n\n`;
             students.forEach((s, idx) => { textBlock += `${idx + 1}. ${s.name} ➔ ${s.dates.includes(today) ? "✔️ CHECKED" : "❌ UNCHECKED"}\n`; });
             window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(textBlock), '_blank');
         }
