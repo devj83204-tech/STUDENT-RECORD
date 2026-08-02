@@ -188,6 +188,90 @@
             color: inherit; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
+
+        .liveClockBar {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: inherit;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+
+        .menuDotsBtn {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 999;
+            padding: 10px 14px;
+            font-size: 16px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: inherit;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        .faqModalOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1200;
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .faqModalBox {
+            background: var(--card-bg, #1e293b);
+            max-width: 560px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .light-mode .faqModalBox { background: #ffffff; }
+        .faqItem {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+        }
+        .faqItem .faqQ {
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            gap: 8px;
+        }
+        .faqItem .faqA {
+            font-size: 13.5px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 480px) {
+            .liveClockBar { font-size: 11px; padding: 8px 12px; top: 10px; }
+            .menuDotsBtn { top: 10px; left: 10px; padding: 8px 12px; }
+        }
         
         /* 📦 GRID & CARDS */
         .icon-grid { 
@@ -469,6 +553,53 @@
 <body>
 
     <button class="modeToggle" onclick="toggleMode()">🌓 Toggle Theme</button>
+    <div class="liveClockBar" id="liveClockBar">--:--:--</div>
+    <button class="menuDotsBtn" onclick="toggleFaqModal()" title="Help / How to use">⋮</button>
+
+    <div class="faqModalOverlay" id="faqModalOverlay" onclick="closeFaqModalOnOverlay(event)">
+        <div class="faqModalBox">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="margin:0; font-size:20px; font-weight:800;">❓ How to Use This App</h2>
+                <button class="backBtn" style="margin:0; padding:6px 12px;" onclick="toggleFaqModal()">✖ Close</button>
+            </div>
+
+            <div class="faqItem">
+                <div class="faqQ">📌 How do I create a class?</div>
+                <div class="faqA">On the Home screen, use the "Add Class" field to type a class name (e.g. Class 8) and tap Add. It will appear as a tile you can open.</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 What is the difference between "Add Subject Only" and "Add Subject with Chapters"?</div>
+                <div class="faqA">Use "Add Subject Only" for subjects that don't need further division (like Science till Class 8) — it takes you straight to the attendance sheet. Use "Add Subject with Chapters" when a subject needs to be split further (like Physics, Chemistry, Biology inside Science).</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 How do I add students to a subject/chapter?</div>
+                <div class="faqA">Open the subject or chapter, tap "➕ Add Name" to expand the box, then either register one student with name + parent WhatsApp number, or use "📁 Import Sheet" to bulk-upload from a CSV/Excel file.</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 How do I mark attendance?</div>
+                <div class="faqA">Inside a subject/chapter's student list, simply tap a student's name/checkbox to mark them present for today. Tap again to unmark.</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 What does the "⚙️ Features" button do?</div>
+                <div class="faqA">It expands extra tools: search/filter students, show only unchecked students, voice-based attendance verification, download a Tabular PDF, WhatsApp broadcast, historic calendar logs, and the leaderboard/ranking view.</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 How do I send a report to parents on WhatsApp?</div>
+                <div class="faqA">Inside "⚙️ Features", tap "💬 Broadcast" for a single subject/chapter report, or use the "📢 Bulk WhatsApp Broadcast" page to send every student's own full report to their parent, one chat at a time.</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 Is my data safe if I close the app or lose internet?</div>
+                <div class="faqA">Your data is saved to the cloud automatically as you work, tied to your login account, so it stays safe and syncs back whenever you reopen the app with the same login.</div>
+            </div>
+            <div class="faqItem">
+                <div class="faqQ">📌 How do I search a specific student's full record?</div>
+                <div class="faqA">On the Home Dashboard, use the "🔍 Analytics Profile Tracker" — pick the class, type the student's full name, and tap "Fetch Analytical Logs" to see their subject-wise attendance, download a PDF, or WhatsApp it to the parent.</div>
+            </div>
+
+            <p style="text-align:center; margin-top:20px; font-size:12px; color: var(--text-muted); font-weight:600;">Made by Shivansh Tiwari</p>
+        </div>
+    </div>
+
 
     <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
     <div id="login" class="page active">
@@ -573,7 +704,7 @@
         <!-- Pull To Refresh Loader element -->
         <div id="ptrIndicator" class="ptr-element">⬇️ Pull Down to Sync Cloud Matrix</div>
         
-        <button class="backBtn" onclick="backToSubSubjects()">⬅ Back to Chapters</button>
+        <button class="backBtn" onclick="backFromStudentPage()">⬅ Back</button>
         <h2 id="subSubjectTitle" style="margin-top: 20px; font-weight:800; word-break: break-all;"></h2>
 
         <div class="stats-widget">📈 Submission Index Rate: <span id="statsChecked">0</span> / <span id="statsTotal">0</span> Checked</div>
@@ -1257,6 +1388,17 @@
         }
         function backToSubSubjects() { showPage("subSubjectPage"); }
 
+        function backFromStudentPage() {
+            // For a "Direct" subject (chapter name === subject name), there's no real chapter
+            // list to go back to — jump straight back to the Subjects list, matching how
+            // we skipped the chapter list on the way IN.
+            if (currentSubject === currentSubSubject) {
+                showPage("subjectPage");
+            } else {
+                showPage("subSubjectPage");
+            }
+        }
+
         // Shared by both entry points: a "Direct" subject (skips chapter list) and a normal chapter click.
         function openChapterAttendanceSheet(subsub) {
             currentSubSubject = subsub;
@@ -1271,6 +1413,28 @@
                 ? `${currentClass} ➔ ${currentSubject}`
                 : `${currentClass} ➔ ${currentSubject} ➔ ${currentSubSubject}`;
             refreshVirtualScroll();
+        }
+
+        // 🕒 Real-time digital clock, ticking every second in the top bar
+        function updateLiveClock() {
+            let now = new Date();
+            let h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+            let ampm = h >= 12 ? 'PM' : 'AM';
+            let h12 = h % 12; if (h12 === 0) h12 = 12;
+            let pad = (n) => n.toString().padStart(2, '0');
+            let dateStr = now.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+            document.getElementById("liveClockBar").innerText = `🕒 ${pad(h12)}:${pad(m)}:${pad(s)} ${ampm}  •  ${dateStr}`;
+        }
+        setInterval(updateLiveClock, 1000);
+        updateLiveClock();
+
+        // ❓ Help / FAQ modal — how-to-use guide with app Q&A
+        function toggleFaqModal() {
+            let overlay = document.getElementById("faqModalOverlay");
+            overlay.style.display = (overlay.style.display === "flex") ? "none" : "flex";
+        }
+        function closeFaqModalOnOverlay(e) {
+            if (e.target.id === "faqModalOverlay") toggleFaqModal();
         }
 
         function toggleAddStudentBox() {
@@ -1416,30 +1580,80 @@
 
         function generatePremiumTabularPDF() {
             const { jsPDF } = window.jspdf; let doc = new jsPDF(); let today = getTodayString();
-            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`Copy Evaluation Log: ${currentClass}`, 14, 20);
-            
-            let tableRows = (data[currentClass][currentSubject][currentSubSubject].students || []).map((s, idx) => {
+            let students = data[currentClass][currentSubject][currentSubSubject].students || [];
+            let checkedTodayCount = students.filter(s => s.dates.includes(today)).length;
+            let subjectLine = (currentSubject === currentSubSubject) ? currentSubject : `${currentSubject}  ➔  ${currentSubSubject}`;
+
+            // Header banner with full context: Class, Subject/Chapter, Date, totals
+            doc.setFillColor(30, 41, 59);
+            doc.rect(0, 0, 210, 36, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("Helvetica", "bold"); doc.setFontSize(16);
+            doc.text(`Copy Evaluation Log`, 14, 14);
+            doc.setFont("Helvetica", "normal"); doc.setFontSize(10.5);
+            doc.text(`Class: ${currentClass}`, 14, 22);
+            doc.text(`Subject: ${subjectLine}`, 14, 28);
+            doc.text(`Date: ${today}`, 130, 22);
+            doc.text(`Total: ${students.length}   |   Checked Today: ${checkedTodayCount}`, 130, 28);
+            doc.setTextColor(0, 0, 0);
+
+            let tableRows = (students || []).map((s, idx) => {
                 let latestDate = s.dates.length > 0 ? [...s.dates].sort().pop() : "N/A";
-                let statusText = s.dates.includes(today) ? `CHECKED (Latest: ${latestDate})` : `UNCHECKED (Latest: ${latestDate})`;
+                let isCheckedToday = s.dates.includes(today);
+                let statusText = isCheckedToday ? `CHECKED (Latest: ${latestDate})` : `UNCHECKED (Latest: ${latestDate})`;
                 return [idx + 1, s.name, s.parentPhone || 'N/A', statusText, s.dates.length];
             });
-            
-            doc.autoTable({ 
-                startY: 40, 
-                head: [['S.No', 'Student Name', 'Parent WhatsApp', 'Status & Latest Check Date', 'Total Entries']], 
-                body: tableRows, 
-                headStyles: { fillColor: [59, 130, 246] } 
+
+            doc.autoTable({
+                startY: 42,
+                head: [['S.No', 'Student Name', 'Parent WhatsApp', 'Status & Latest Check Date', 'Total Entries']],
+                body: tableRows,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 5, valign: 'middle', lineColor: [220, 224, 230], lineWidth: 0.2 },
+                headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 9.5 },
+                alternateRowStyles: { fillColor: [244, 247, 251] },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 14 },
+                    1: { fontStyle: 'bold' },
+                    3: { halign: 'left' },
+                    4: { halign: 'center', cellWidth: 24 }
+                },
+                didParseCell: function (hookData) {
+                    if (hookData.section === 'body' && hookData.column.index === 3) {
+                        let cellText = String(hookData.cell.raw);
+                        if (cellText.indexOf('UNCHECKED') !== -1) {
+                            hookData.cell.styles.textColor = [220, 38, 38];   // red — unchecked
+                            hookData.cell.styles.fontStyle = 'bold';
+                        } else if (cellText.indexOf('CHECKED') !== -1) {
+                            hookData.cell.styles.textColor = [16, 163, 74];  // green — checked
+                            hookData.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
             });
+
+            let footerY = doc.internal.pageSize.height - 10;
+            doc.setFontSize(8); doc.setTextColor(130, 130, 130);
+            doc.text(`Generated via Student Record App`, 14, footerY);
+
             savePdfUniversally(doc, `${currentSubSubject}_Report.pdf`);
         }
 
         function generateCompleteClassMatrixPDF_Option2() {
             const { jsPDF } = window.jspdf; let doc = new jsPDF('l', 'mm', 'a4'); let today = getTodayString();
-            doc.setFont("Helvetica", "bold"); doc.setFontSize(18); doc.text(`🏫 Class Master Matrix: ${currentClass}`, 14, 18);
-            
+
             let allStudentNamesSet = new Set(); let allSubjectsMap = data[currentClass] || {};
             for (let sub in allSubjectsMap) { for (let ch in allSubjectsMap[sub]) { (allSubjectsMap[sub][ch].students || []).forEach(s => allStudentNamesSet.add(s.name)); } }
             let uniqueStudentsList = Array.from(allStudentNamesSet).sort();
+
+            doc.setFillColor(30, 41, 59);
+            doc.rect(0, 0, 297, 26, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("Helvetica", "bold"); doc.setFontSize(16);
+            doc.text(`Class Master Matrix`, 14, 12);
+            doc.setFont("Helvetica", "normal"); doc.setFontSize(10);
+            doc.text(`Class: ${currentClass}     Date: ${today}     Total Students: ${uniqueStudentsList.length}`, 14, 20);
+            doc.setTextColor(0, 0, 0);
             
             let headers = ['Student Name']; let trackColumnsKeys = [];
             for (let sub in allSubjectsMap) { for (let ch in allSubjectsMap[sub]) { headers.push(`${sub}\n(${ch})`); trackColumnsKeys.push({ subject: sub, chapter: ch }); } }
@@ -1457,8 +1671,19 @@
             });
             
             doc.autoTable({
-                startY: 34, head: [headers], body: tableRows, theme: 'grid', styles: { fontSize: 7, halign: 'center', valign: 'middle' },
-                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 8.5 } }, headStyles: { fillColor: [30, 41, 59] }
+                startY: 32, head: [headers], body: tableRows, theme: 'grid',
+                styles: { fontSize: 7, halign: 'center', valign: 'middle', lineColor: [220, 224, 230], lineWidth: 0.2 },
+                columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fontSize: 8.5 } },
+                headStyles: { fillColor: [30, 41, 59], textColor: [255,255,255] },
+                alternateRowStyles: { fillColor: [244, 247, 251] },
+                didParseCell: function (hookData) {
+                    if (hookData.section === 'body' && hookData.column.index > 0) {
+                        let cellText = String(hookData.cell.raw);
+                        if (cellText.indexOf('UNCHECKED') !== -1) { hookData.cell.styles.textColor = [220, 38, 38]; hookData.cell.styles.fontStyle = 'bold'; }
+                        else if (cellText.indexOf('CHECKED') !== -1) { hookData.cell.styles.textColor = [16, 163, 74]; hookData.cell.styles.fontStyle = 'bold'; }
+                        else if (cellText.indexOf('PENDING') !== -1) { hookData.cell.styles.textColor = [217, 119, 6]; hookData.cell.styles.fontStyle = 'bold'; }
+                    }
+                }
             });
             
             savePdfUniversally(doc, `Class_Master_Matrix_Report.pdf`);
