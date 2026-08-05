@@ -1804,6 +1804,126 @@
             refreshVirtualScroll();
         }
 
+        // ---------- Fuzzy / Phonetic Name Matching Engine (for Voice Verify) ----------
+        // Purpose: Speech-to-text often mis-spells Indian names/surnames (e.g. "Shreya" vs
+        // "Shraya", "Aakash" vs "Akash", "Kumar" vs "Kummar"). These helpers score how close
+        // the heard transcript is to each name IN THE CURRENT CLASS LIST, and pick the closest
+        // match instead of requiring an exact substring hit.
+
+        function levenshteinDistance(a, b) {
+            const al = a.length, bl = b.length;
+            if (al === 0) return bl;
+            if (bl === 0) return al;
+            let prevRow = new Array(al + 1);
+            for (let j = 0; j <= al; j++) prevRow[j] = j;
+            for (let i = 1; i <= bl; i++) {
+                let currRow = [i];
+                for (let j = 1; j <= al; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        currRow[j] = prevRow[j - 1];
+                    } else {
+                        currRow[j] = Math.min(
+                            prevRow[j - 1] + 1, // substitution
+                            currRow[j - 1] + 1, // insertion
+                            prevRow[j] + 1      // deletion
+                        );
+                    }
+                }
+                prevRow = currRow;
+            }
+            return prevRow[al];
+        }
+
+        function stringSimilarity(a, b) {
+            if (!a || !b) return 0;
+            if (a === b) return 1;
+            const maxLen = Math.max(a.length, b.length);
+            if (maxLen === 0) return 1;
+            return 1 - (levenshteinDistance(a, b) / maxLen);
+        }
+
+        // Normalizes common Indian-name spelling/phonetic variants so that near-miss
+        // transcriptions ("Shivani"/"Sivani", "Krishnaa"/"Krishna", "Waseem"/"Vasim")
+        // collapse to a similar base form before comparison.
+        function phoneticNormalize(str) {
+            return str
+                .toLowerCase()
+                .replace(/[^a-z\s]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .replace(/w/g, 'v')
+                .replace(/ph/g, 'f')
+                .replace(/sh/g, 's')
+                .replace(/kh/g, 'k')
+                .replace(/gh/g, 'g')
+                .replace(/th/g, 't')
+                .replace(/dh/g, 'd')
+                .replace(/bh/g, 'b')
+                .replace(/ch/g, 'c')
+                .replace(/aa+/g, 'a')
+                .replace(/ee+/g, 'i')
+                .replace(/oo+/g, 'u')
+                .replace(/([a-z])\1+/g, '$1');
+        }
+
+        // Compares a candidate word-window from the transcript against a target name using
+        // both raw and phonetically-normalized similarity, returning the better score.
+        function bestNameSimilarity(candidate, target) {
+            let raw = stringSimilarity(candidate, target);
+            let phon = stringSimilarity(phoneticNormalize(candidate), phoneticNormalize(target));
+            return Math.max(raw, phon);
+        }
+
+        // Scans the transcript for the closest-matching student name FROM THE CURRENT CLASS
+        // LIST ONLY (so matching is always anchored to the actual roster, not guessed blindly).
+        // Tries: 1) exact substring (fast path, unchanged from before), then 2) a sliding
+        // word-window fuzzy/phonetic comparison that tolerates minor mis-hearing of the name
+        // and/or surname. Returns the single best-matching student above the threshold, or null.
+        function findBestVoiceMatch(transcript, students) {
+            transcript = transcript.toLowerCase().trim();
+            const transcriptWords = transcript.split(/\s+/).filter(Boolean);
+            const THRESHOLD = 0.72;
+
+            let best = null, bestScore = 0;
+
+            students.forEach(s => {
+                let targetName = (s.name || '').toLowerCase().trim();
+                if (!targetName) return;
+
+                // Fast path: exact substring match (kept for reliability, same as before)
+                if (transcript.includes(targetName)) {
+                    if (1 > bestScore) { bestScore = 1; best = s; }
+                    return;
+                }
+
+                let targetWords = targetName.split(/\s+/).filter(Boolean);
+                let n = targetWords.length;
+                if (transcriptWords.length === 0 || n === 0) return;
+
+                for (let i = 0; i <= transcriptWords.length - n; i++) {
+                    let windowWords = transcriptWords.slice(i, i + n);
+                    let windowStr = windowWords.join(' ');
+
+                    // Full-phrase similarity (handles slightly shifted/merged spelling)
+                    let fullScore = bestNameSimilarity(windowStr, targetName);
+
+                    // Per-word similarity (handles first-name OR surname mis-hearing
+                    // while the other part is heard correctly)
+                    let wordTotal = 0;
+                    for (let k = 0; k < n; k++) {
+                        wordTotal += bestNameSimilarity(windowWords[k], targetWords[k]);
+                    }
+                    let avgWordScore = wordTotal / n;
+
+                    let combined = Math.max(fullScore, avgWordScore);
+                    if (combined > bestScore) { bestScore = combined; best = s; }
+                }
+            });
+
+            return bestScore >= THRESHOLD ? best : null;
+        }
+        // ---------- End Fuzzy / Phonetic Name Matching Engine ----------
+
         function toggleVoiceRecognition() {
             if(isListening) { stopVoiceEngine(); return; }
             window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1829,16 +1949,17 @@
                 let students = data[currentClass][currentSubject][currentSubSubject].students || [];
                 let matchFound = false;
 
-                students.forEach(s => {
-                    let targetName = s.name.toLowerCase();
-                    if (transcript.includes(targetName)) {
-                        let idx = s.dates.indexOf(today);
-                        if (idx === -1) {
-                            s.dates.push(today);
-                            matchFound = true;
-                        }
+                // Anchored to the CURRENT CLASS list: pick the single closest name (exact,
+                // or fuzzy/phonetic if the name/surname was slightly mis-heard/mis-spelled).
+                let matchedStudent = findBestVoiceMatch(transcript, students);
+
+                if (matchedStudent) {
+                    let idx = matchedStudent.dates.indexOf(today);
+                    if (idx === -1) {
+                        matchedStudent.dates.push(today);
+                        matchFound = true;
                     }
-                });
+                }
 
                 if (matchFound) { 
                     playSound('check'); 
