@@ -1087,9 +1087,60 @@
             savePdfUniversally(doc, `${lastSearchedStudentData.studentName}_Analytics_Profile.pdf`);
         }
 
+        // ================== 📱 WHATSAPP HELPERS (shared by all send paths) ==================
+        // Fixes "wrong number" / "wrong country code" issue: WhatsApp's api.whatsapp.com
+        // link requires digits-only, WITH country code, and NO leading trunk "0". Teachers
+        // often save numbers as "09876543210", "9876543210", "+91 98765 43210" or
+        // "0091-9876543210" — all of these used to break the old plain digit-strip logic
+        // (it either kept a stray leading 0, which shifts every digit and dials a totally
+        // different subscriber, or left the number without a country code at all, which
+        // WhatsApp then misreads under the wrong country). This normalizes all of those
+        // into one clean E.164-style digit string before the link is built.
+        function normalizeWhatsAppNumber(raw) {
+            if (!raw) return "";
+            let digits = String(raw).replace(/\D/g, ''); // strip +, spaces, dashes, brackets
+            if (!digits) return "";
+
+            // "0091xxxxxxxxxx" style international trunk prefix -> "91xxxxxxxxxx"
+            if (digits.startsWith('00')) digits = digits.slice(2);
+
+            // "09876543210" (leading trunk 0 + 10-digit mobile) -> "9876543210"
+            if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+
+            // Plain 10-digit Indian mobile with no country code at all -> prepend 91
+            if (digits.length === 10) digits = '91' + digits;
+
+            // Anything else (already has a valid country code, or is a non-Indian number
+            // the teacher typed in full) is left exactly as-is so it isn't broken further.
+            return digits;
+        }
+
+        // Builds the "• *Chapters:* ..." style breakdown line for a subject, showing each
+        // sub-subject's OWN latest check date + entry count — only when that subject
+        // actually has sub-subjects worth breaking out (more than one chapter, or a chapter
+        // whose name differs from the subject itself). Works with either a `dates` array or
+        // a precomputed `latestDate`/`count` pair on each chapter entry.
+        function formatChapterBreakdownForWhatsApp(subjectName, chapters) {
+            if (!chapters || chapters.length === 0) return "";
+            let isRealSubSubject = chapters.length > 1 || chapters[0].chapter !== subjectName;
+            if (!isRealSubSubject) return "";
+
+            let lines = chapters.map(ch => {
+                let latest = ch.latestDate;
+                if (!latest && ch.dates && ch.dates.length > 0) {
+                    latest = [...ch.dates].sort()[ch.dates.length - 1];
+                }
+                if (!latest) latest = "N/A";
+                let count = (ch.count !== undefined) ? ch.count : (ch.dates ? ch.dates.length : 0);
+                return `   - ${ch.chapter}: Latest ${latest}, Checked ${count}x`;
+            });
+            return `• *Sub-Subject Breakdown:*\n${lines.join('\n')}\n`;
+        }
+        // ================== END WHATSAPP HELPERS ==================
+
         function sendStudentReportViaWhatsApp() {
             if(!lastSearchedStudentData) return;
-            let phone = lastSearchedStudentData.parentPhone ? lastSearchedStudentData.parentPhone.replace(/\D/g, '') : "";
+            let phone = normalizeWhatsAppNumber(lastSearchedStudentData.parentPhone);
             
             let message = `*📊 STUDENT PROGRESS & ATTENDANCE REPORT*\n\n`;
             message += `*Student Name:* ${lastSearchedStudentData.studentName}\n`;
@@ -1104,9 +1155,7 @@
                     message += `\n*${idx + 1}. Subject:* ${rec.subjectName}\n`;
                     message += `• *Latest Check Date:* ${rec.latestDate}\n`;
                     message += `• *Total Verified Entries:* ${rec.totalEntries}\n`;
-                    if(rec.chapters.length > 0) {
-                        message += `• *Chapters:* ${rec.chapters.map(c => `${c.chapter} (${c.count})`).join(', ')}\n`;
-                    }
+                    message += formatChapterBreakdownForWhatsApp(rec.subjectName, rec.chapters);
                 });
             }
 
@@ -1139,7 +1188,7 @@
                         let subjRec = studentsMap[key].subjects[subject];
                         subjRec.totalEntries += s.dates.length;
                         s.dates.forEach(d => subjRec.dates.push(d));
-                        subjRec.chapters.push({ chapter: chapter, count: s.dates.length });
+                        subjRec.chapters.push({ chapter: chapter, count: s.dates.length, dates: [...s.dates] });
                     });
                 }
             }
@@ -1169,9 +1218,7 @@
                     message += `\n*${idx + 1}. Subject:* ${rec.subjectName}\n`;
                     message += `• *Latest Check Date:* ${rec.latestDate}\n`;
                     message += `• *Total Verified Entries:* ${rec.totalEntries}\n`;
-                    if (rec.chapters.length > 0) {
-                        message += `• *Chapters:* ${rec.chapters.map(c => `${c.chapter} (${c.count})`).join(', ')}\n`;
-                    }
+                    message += formatChapterBreakdownForWhatsApp(rec.subjectName, rec.chapters);
                 });
             }
 
@@ -1272,7 +1319,7 @@
                 return;
             }
             let student = bulkQueue[bulkQueueIndex];
-            let cleanPhone = student.phone.replace(/\D/g, '');
+            let cleanPhone = normalizeWhatsAppNumber(student.phone);
             let message = buildParentWhatsAppMessage(student.name, currentClass, student.subjectRecords);
             let waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
             window.open(waUrl, '_blank');
@@ -1750,6 +1797,8 @@
                 let subTotalEntries = 0;
                 let latestSubDate = "N/A";
                 let subDatesArr = [];
+                let chapterRecords = []; // per sub-subject: its OWN latest date + count
+
                 for(let ch in allSubjectsMap[sub]) {
                     let students = allSubjectsMap[sub][ch].students || [];
                     let match = students.find(s => s.name.toLowerCase() === studentName.toLowerCase());
@@ -1757,6 +1806,7 @@
                         if(match.parentPhone) phone = match.parentPhone;
                         subTotalEntries += match.dates.length;
                         match.dates.forEach(d => subDatesArr.push(d));
+                        chapterRecords.push({ chapter: ch, count: match.dates.length, dates: [...match.dates] });
                     }
                 }
                 if(subDatesArr.length > 0) {
@@ -1766,17 +1816,19 @@
                 studentAllRecords.push({
                     subjectName: sub,
                     totalEntries: subTotalEntries,
-                    latestDate: latestSubDate
+                    latestDate: latestSubDate,
+                    chapters: chapterRecords
                 });
             }
 
             let message = `*📊 STUDENT PROGRESS REPORT*\n\n*Student Name:* ${studentName}\n*Class Node:* ${currentClass}\n*Report Date:* ${getTodayString()}\n\n--- *SUBJECT RECORDS* ---\n`;
             studentAllRecords.forEach(rec => {
-                message += `• *${rec.subjectName}:* Latest Checked: ${rec.latestDate} | Total Logs: ${rec.totalEntries}\n`;
+                message += `\n• *${rec.subjectName}:* Latest Checked: ${rec.latestDate} | Total Logs: ${rec.totalEntries}\n`;
+                message += formatChapterBreakdownForWhatsApp(rec.subjectName, rec.chapters);
             });
             message += `\n_Please check your child's progress summary._`;
 
-            let cleanPhone = phone ? phone.replace(/\D/g, '') : "";
+            let cleanPhone = normalizeWhatsAppNumber(phone);
             let waUrl = cleanPhone ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
             window.open(waUrl, '_blank');
         }
