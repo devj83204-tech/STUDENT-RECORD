@@ -157,6 +157,12 @@
 
         .primary { background: var(--primary); color: white; }
         .primary:hover { background: var(--primary-hover); }
+        .authTabs { display:flex; gap:8px; margin-bottom:18px; background:rgba(255,255,255,0.05); padding:6px; border-radius:14px; }
+        .authTabBtn { flex:1; margin:0; padding:10px 8px; font-size:12.5px; border-radius:10px; background:transparent; color:var(--text-muted); box-shadow:none; }
+        .authTabBtn:hover { transform:none; background:rgba(255,255,255,0.06); }
+        .authTabActive { background:linear-gradient(135deg,#3b82f6,#10b981); color:#fff; }
+        .schoolCodeBadge { display:inline-flex; align-items:center; gap:8px; background:rgba(124,58,237,0.14); border:1px solid rgba(124,58,237,0.35); padding:8px 14px; border-radius:30px; font-size:12.5px; font-weight:700; margin-bottom:14px; }
+        .schoolCodeBadge b { color:#a78bfa; letter-spacing:.5px; }
         .success-btn { background: var(--success); color: white; }
         .success-btn:hover { background: var(--success-hover); }
         .pdf-btn { background: #8b5cf6; color: white; }
@@ -601,13 +607,38 @@
 
     <!-- 🌐 SECTION 1: LOGIN TERMINAL -->
     <div id="login" class="page active">
-        <div class="center" style="margin-top: 80px;">
-            <h1 style="font-size:36px; font-weight: 800; letter-spacing:-0.5px; margin-bottom: 30px; background: linear-gradient(to right, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">STUDENT RECORD APP</h1>
+        <div class="center" style="margin-top: 60px;">
+            <h1 style="font-size:36px; font-weight: 800; letter-spacing:-0.5px; margin-bottom: 22px; background: linear-gradient(to right, #3b82f6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">STUDENT RECORD APP</h1>
             <div class="auth-container">
-                <h2 style="margin-top:0; font-size:22px; font-weight:700; margin-bottom:20px;">🔐 Login / Sign Up Page</h2>
-                <input type="text" id="teacherUsername" placeholder="Enter Unique User ID">
-                <input type="password" id="teacherPassword" placeholder="Enter Secure Password">
-                <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleCloudAuth()">Create or Login Account ➔</button>
+                <div class="authTabs">
+                    <button type="button" id="tabLoginBtn" class="authTabBtn authTabActive" onclick="switchAuthTab('login')">🔐 Login</button>
+                    <button type="button" id="tabSignupBtn" class="authTabBtn" onclick="switchAuthTab('signup')">🆕 New Teacher Sign Up</button>
+                </div>
+
+                <div id="loginTabBox">
+                    <h2 style="margin-top:0; font-size:20px; font-weight:700; margin-bottom:16px;">Log in with your Teacher ID</h2>
+                    <label class="small">School Code (given by your Headmaster)</label>
+                    <input type="text" id="loginSchoolCode" placeholder="e.g. SVMS2026" style="text-transform:uppercase;">
+                    <label class="small">Teacher ID</label>
+                    <input type="text" id="teacherUsername" placeholder="Your Teacher ID">
+                    <label class="small">Password</label>
+                    <input type="password" id="teacherPassword" placeholder="Your Password">
+                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleCloudAuth()">Login ➔</button>
+                </div>
+
+                <div id="signupTabBox" style="display:none;">
+                    <h2 style="margin-top:0; font-size:20px; font-weight:700; margin-bottom:16px;">Create your Teacher ID</h2>
+                    <label class="small">School Code (given by your Headmaster)</label>
+                    <input type="text" id="signupSchoolCode" placeholder="e.g. SVMS2026" style="text-transform:uppercase;">
+                    <label class="small">Your Full Name</label>
+                    <input type="text" id="signupName" placeholder="e.g. Rahul Sharma">
+                    <label class="small">Choose a Teacher ID</label>
+                    <input type="text" id="signupUsername" placeholder="e.g. rahul.sir">
+                    <label class="small">Choose a Password</label>
+                    <input type="password" id="signupPassword" placeholder="Set a password">
+                    <button class="success-btn" style="width: 100%; padding: 14px; margin-top: 15px; font-size:16px; border-radius:12px;" onclick="handleTeacherSignup()">Create ID &amp; Continue ➔</button>
+                    <p style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.5;">After signing up you'll appear in your Headmaster's panel — ask them to assign you a class/subject so your data unlocks.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -615,8 +646,12 @@
     <!-- 🏫 SECTION 2: HOMEPAGE DASHBOARD -->
     <div id="home" class="page">
         <div>
+            <div class="schoolCodeBadge" id="homeSchoolBadge">🏫 School: <b id="mySchoolCodeDisplay">—</b></div>
             <h1 id="welcomeTitle" style="font-size:28px; font-weight:800;">Welcome Dashboard</h1>
-            
+            <div id="noRoleNotice" style="display:none; background:rgba(245,158,11,0.12); border-left:5px solid var(--warning); padding:14px 16px; border-radius:12px; font-size:13px; margin-bottom:16px;">
+                ⏳ Your Headmaster hasn't assigned you a class or subject yet. Once assigned, it will appear here automatically.
+            </div>
+
             <div class="search-profile-box">
                 <h3 style="margin-top:0; color:#3b82f6; display:flex; align-items:center; gap:8px;">🔍 Analytics Profile Tracker</h3>
                 <select id="searchClassDropdown" onchange="clearSearchOutputFields()"><option value="">-- Select Class Channel --</option></select>
@@ -629,10 +664,11 @@
                 <div id="globalSearchResultDisplay" style="margin-top:14px; background:rgba(0,0,0,0.2); padding:12px; border-radius:10px; display:none; max-height:260px; overflow-y:auto;"></div>
             </div>
 
-            <div style="margin-top:24px;">
+            <div id="addClassBox" style="margin-top:24px;">
                 <input type="text" id="newClass" placeholder="Create Class Node (e.g., Class 12-B)">
                 <button class="primary" style="width:100%; margin-top:6px;" onclick="addClass()">Add Class</button>
             </div>
+            <p id="classesOwnedByHmNotice" style="display:none; font-size:12px; color:var(--text-muted); margin-top:16px;">🏫 Classes are created by your Headmaster. You'll see your assigned class(es) below.</p>
             
             <div class="skeleton-wrapper" id="homeSkeleton"><div class="skeleton-box"></div><div class="skeleton-box"></div></div>
             <div class="icon-grid" id="classList"></div>
@@ -657,13 +693,14 @@
             </div>
         </div>
 
-        <div>
+        <div id="addSubjectBox">
             <input type="text" id="newSubject" placeholder="Enter New Subject Field">
             <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
                 <button class="primary" style="flex:1; min-width:150px;" onclick="addSubjectDirect()" title="For subjects with no separate chapters, e.g. Science till Class 8">➕ Add Subject Only</button>
                 <button class="primary" style="flex:1; min-width:150px; background:#7c3aed;" onclick="addSubjectWithChapters()" title="For subjects divided into chapters, e.g. Physics/Chemistry/Biology inside Science">➕ Add Subject with Chapters</button>
             </div>
         </div>
+        <p id="subjectOwnedByCtNotice" style="display:none; font-size:12px; color:var(--text-muted);">📘 You're a Subject Teacher here — your assigned subject(s) are shown below. Ask your Class Teacher or Headmaster to add more.</p>
         <div class="skeleton-wrapper" id="subjectSkeleton"><div class="skeleton-box"></div></div>
         <div class="icon-grid" id="subjectList"></div>
     </div>
@@ -761,12 +798,25 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const FieldValue = firebase.firestore.FieldValue;
 
-        let data = {}; 
+        // ------------------------------------------------------------------
+        // SHARED SCHOOL DOCUMENT — this app connects to the SAME Firestore
+        // doc ("schools/{schoolCode}") that the Headmaster Panel uses. The
+        // Headmaster creates/assigns Classes → Subjects → Teachers; this app
+        // only shows a teacher the exact class/subject slice they've been
+        // assigned to (a Class Teacher sees the whole class, a Subject
+        // Teacher only their subject), while keeping every existing feature
+        // (voice check, PDF, WhatsApp, search, leaderboard) working exactly
+        // as before on that scoped slice.
+        // ------------------------------------------------------------------
+        let data = {};             // scoped view of classes{} this teacher may see/edit
         let currentClass = ""; let currentSubject = ""; let currentSubSubject = "";
         let filterUncheckedOnly = false; let filteredStudentsList = [];
         let recognition = null; let isListening = false;
-        let activeCloudUser = "";
+        let activeCloudUser = "";      // teacher ID
+        let activeSchoolCode = "";     // school code (shared doc id)
+        let myScope = { classTeacherOf: [], subjectTeacherOf: [] };
         let audioCtx = null;
         let liveSubscriptionUnsubscribe = null;
         let lastSearchedStudentData = null; 
@@ -824,8 +874,8 @@
         ptrViewport.addEventListener('touchend', () => {
             if(ptrIndicator.classList.contains("ptr-loading")) {
                 ptrIndicator.innerText = "⚡ Fetching real-time architecture...";
-                if(activeCloudUser) {
-                    setupRealtimeListener(activeCloudUser);
+                if(activeSchoolCode) {
+                    setupRealtimeListener();
                 }
                 setTimeout(() => {
                     ptrIndicator.classList.remove("ptr-loading");
@@ -845,15 +895,65 @@
             } catch(e) { return 0; }
         }
 
-        function setupRealtimeListener(userDocId) {
+        // Whether this teacher has FULL access (Class Teacher) to a given class —
+        // full access means all subjects, and permission to add/remove subjects.
+        function hasFullClassAccess(cls) {
+            return myScope.classTeacherOf.includes(cls);
+        }
+        // Which subjects this teacher may see inside a given class (Subject Teacher scope)
+        function allowedSubjectsFor(cls) {
+            return myScope.subjectTeacherOf.filter(p => p.cls === cls).map(p => p.subj);
+        }
+
+        // Builds the scoped `data` object this teacher is allowed to see/edit,
+        // out of the full shared `classes` tree from the school document.
+        function buildScopedData(rawClasses) {
+            let scoped = {};
+            Object.keys(rawClasses || {}).forEach(cls => {
+                if (hasFullClassAccess(cls)) {
+                    scoped[cls] = rawClasses[cls]; // full class access — all subjects
+                } else {
+                    let subs = allowedSubjectsFor(cls);
+                    if (subs.length) {
+                        scoped[cls] = {};
+                        subs.forEach(s => { if (rawClasses[cls][s]) scoped[cls][s] = rawClasses[cls][s]; });
+                    }
+                }
+            });
+            return scoped;
+        }
+
+        function applyScopeUI() {
+            // Only Class Teachers may create brand-new classes/subjects — subjects
+            // are otherwise fixed by the Headmaster's assignment.
+            let anyFullAccess = myScope.classTeacherOf.length > 0;
+            document.getElementById("addClassBox").style.display = "none"; // classes are always headmaster-owned now
+            document.getElementById("classesOwnedByHmNotice").style.display = "block";
+            document.getElementById("mySchoolCodeDisplay").innerText = activeSchoolCode || "—";
+            let hasAnyAccess = Object.keys(data).length > 0;
+            document.getElementById("noRoleNotice").style.display = hasAnyAccess ? "none" : "block";
+        }
+
+        function setupRealtimeListener() {
             if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); }
             document.getElementById("cloudStatus").innerText = "🔄 Establishing Live Sync...";
             
-            liveSubscriptionUnsubscribe = db.collection("teachers_pwd").doc(userDocId)
+            liveSubscriptionUnsubscribe = db.collection("schools").doc(activeSchoolCode)
                 .onSnapshot((doc) => {
                     if (doc.exists) {
-                        data = doc.data().schoolData || {};
+                        let school = doc.data();
+                        let teacherRec = (school.teachers || {})[activeCloudUser];
+                        if (!teacherRec) {
+                            // Headmaster deleted this teacher ID
+                            document.getElementById("cloudStatus").innerText = "⚠️ Your Teacher ID was removed by the Headmaster";
+                            logoutTeacher(true);
+                            return;
+                        }
+                        myScope = { classTeacherOf: teacherRec.classTeacherOf || [], subjectTeacherOf: teacherRec.subjectTeacherOf || [] };
+                        data = buildScopedData(school.classes || {});
+                        document.getElementById("welcomeTitle").innerText = `Welcome, ${teacherRec.name || activeCloudUser}`;
                         document.getElementById("cloudStatus").innerText = "☁️ Realtime Sync: Active";
+                        applyScopeUI();
                         refreshActiveInterfaceViewports();
                     }
                 }, (error) => {
@@ -870,15 +970,33 @@
             else if (document.getElementById("studentPage").classList.contains("active")) { refreshVirtualScroll(); }
         }
 
+        // Targeted field-path write — touches only the exact class/subject
+        // subtree this teacher owns, so concurrent edits by other teachers
+        // (or the Headmaster) on other classes/subjects are never clobbered.
+        async function schoolSetField(path, value) {
+            const ref = db.collection("schools").doc(activeSchoolCode);
+            try { await ref.update({ [path]: value }); }
+            catch (e) { await ref.set({}, { merge: true }); await ref.update({ [path]: value }); }
+        }
+
         async function saveData() { 
             updateLiveVisualCounters();
-            if (activeCloudUser) {
-                try {
-                    await db.collection("teachers_pwd").doc(activeCloudUser).update({ schoolData: data });
-                    document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
-                } catch (e) {
-                    await db.collection("teachers_pwd").doc(activeCloudUser).set({ schoolData: data }, { merge: true });
-                }
+            if (!activeSchoolCode || !activeCloudUser) return;
+            try {
+                let writes = [];
+                Object.keys(data).forEach(cls => {
+                    if (hasFullClassAccess(cls)) {
+                        writes.push(schoolSetField(`classes.${cls}`, data[cls]));
+                    } else {
+                        allowedSubjectsFor(cls).forEach(subj => {
+                            if (data[cls][subj]) writes.push(schoolSetField(`classes.${cls}.${subj}`, data[cls][subj]));
+                        });
+                    }
+                });
+                await Promise.all(writes);
+                document.getElementById("cloudStatus").innerText = "☁️ Data Node Locked: Synced";
+            } catch (e) {
+                document.getElementById("cloudStatus").innerText = "⚠️ Sync Error — retry";
             }
         }
         
@@ -891,53 +1009,87 @@
         function goHome() { showPage("home"); triggerSkeletonLoader("homeSkeleton", 400); renderClasses(); populateSearchDropdown(); }
         function toggleMode() { document.body.classList.toggle("light-mode"); }
 
-        // AUTO LOGIN SECURITY INTEGRATION (PERSISTENT LOGIC)
+        function switchAuthTab(tab) {
+            let isLogin = tab === 'login';
+            document.getElementById("loginTabBox").style.display = isLogin ? "block" : "none";
+            document.getElementById("signupTabBox").style.display = isLogin ? "none" : "block";
+            document.getElementById("tabLoginBtn").classList.toggle("authTabActive", isLogin);
+            document.getElementById("tabSignupBtn").classList.toggle("authTabActive", !isLogin);
+        }
+
+        function completeLogin(code, user, teacherName) {
+            activeSchoolCode = code;
+            activeCloudUser = user;
+            sessionStorage.setItem("pwdCloudSchool", activeSchoolCode);
+            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
+            document.getElementById("welcomeTitle").innerText = `Welcome, ${teacherName || activeCloudUser}`;
+            setupRealtimeListener();
+            goHome();
+        }
+
+        // LOGIN — for a Teacher ID that already exists (created by the
+        // Headmaster, or via earlier Sign Up on this app)
         function handleCloudAuth() {
+            let code = document.getElementById("loginSchoolCode").value.trim().toUpperCase();
             let user = document.getElementById("teacherUsername").value.trim().toLowerCase();
             let pass = document.getElementById("teacherPassword").value.trim();
-            if(!user || !pass) return;
+            if(!code || !user || !pass) { alert("Fill School Code, Teacher ID and Password."); return; }
             
             document.getElementById("cloudStatus").innerText = "🔄 Authentication Pending...";
             
-            db.collection("teachers_pwd").doc(user).get()
-                .then((userDoc) => {
-                    if (userDoc.exists) {
-                        if (userDoc.data().accountPassword === pass) {
-                            activeCloudUser = user;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            localStorage.setItem("autoLoginUser", activeCloudUser);
-                            localStorage.setItem("autoLoginPass", pass);
-                            
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
-                        } else {
-                            alert("❌ Credentials mismatch.");
-                        }
-                    } else {
-                        if (confirm(`User node "${user}" does not exist. Initialize storage gateway?`)) {
-                            db.collection("teachers_pwd").doc(user).set({ accountPassword: pass, schoolData: {} })
-                            .then(() => {
-                                activeCloudUser = user;
-                                sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                                localStorage.setItem("autoLoginUser", activeCloudUser);
-                                localStorage.setItem("autoLoginPass", pass);
-                                
-                                setupRealtimeListener(activeCloudUser);
-                                goHome();
-                            });
-                        }
-                    }
+            db.collection("schools").doc(code).get()
+                .then((schoolDoc) => {
+                    if (!schoolDoc.exists) { alert("❌ No school found with that School Code. Check with your Headmaster."); return; }
+                    let teachers = schoolDoc.data().teachers || {};
+                    let t = teachers[user];
+                    if (!t) { alert(`❌ No Teacher ID "${user}" in this school. Use Sign Up if you're new.`); return; }
+                    if (t.password !== pass) { alert("❌ Wrong password."); return; }
+                    localStorage.setItem("autoLoginSchool", code);
+                    localStorage.setItem("autoLoginUser", user);
+                    localStorage.setItem("autoLoginPass", pass);
+                    completeLogin(code, user, t.name);
                 });
         }
 
-        function logoutTeacher() {
-            if (confirm("Are you sure you want to disconnect from this account node?")) {
+        // SIGN UP — a brand-new teacher registers themself using the School
+        // Code shared by their Headmaster. They immediately appear in the
+        // Headmaster Panel's teacher list (with no role yet) ready to be
+        // assigned to a class/subject.
+        function handleTeacherSignup() {
+            let code = document.getElementById("signupSchoolCode").value.trim().toUpperCase();
+            let name = document.getElementById("signupName").value.trim();
+            let user = document.getElementById("signupUsername").value.trim().toLowerCase();
+            let pass = document.getElementById("signupPassword").value.trim();
+            if(!code || !name || !user || !pass) { alert("Fill in all fields."); return; }
+
+            document.getElementById("cloudStatus").innerText = "🔄 Creating your Teacher ID...";
+
+            const schoolRef = db.collection("schools").doc(code);
+            schoolRef.get().then((schoolDoc) => {
+                if (!schoolDoc.exists) { alert("❌ No school found with that School Code. Double-check it with your Headmaster."); return; }
+                let teachers = schoolDoc.data().teachers || {};
+                if (teachers[user]) { alert("❌ This Teacher ID is already taken in this school. Choose another, or use Login if it's yours."); return; }
+                schoolRef.update({ [`teachers.${user}`]: { name, password: pass, classTeacherOf: [], subjectTeacherOf: [] } })
+                    .then(() => {
+                        localStorage.setItem("autoLoginSchool", code);
+                        localStorage.setItem("autoLoginUser", user);
+                        localStorage.setItem("autoLoginPass", pass);
+                        completeLogin(code, user, name);
+                    });
+            });
+        }
+
+        function logoutTeacher(silent) {
+            if (silent || confirm("Are you sure you want to disconnect from this account node?")) {
                 if (liveSubscriptionUnsubscribe) { liveSubscriptionUnsubscribe(); liveSubscriptionUnsubscribe = null; }
-                sessionStorage.removeItem("pwdCloudUser"); 
+                sessionStorage.removeItem("pwdCloudUser");
+                sessionStorage.removeItem("pwdCloudSchool");
+                localStorage.removeItem("autoLoginSchool");
                 localStorage.removeItem("autoLoginUser");
                 localStorage.removeItem("autoLoginPass");
                 activeCloudUser = ""; 
+                activeSchoolCode = "";
+                myScope = { classTeacherOf: [], subjectTeacherOf: [] };
                 data = {};
                 showPage("login");
             }
@@ -1339,18 +1491,17 @@
         // ================== END BULK WHATSAPP BROADCAST ENGINE ==================
 
         function addClass() {
-            let name = document.getElementById("newClass").value.trim(); if (!name) return;
-            if (!data[name]) data[name] = {}; saveData(); document.getElementById("newClass").value = ""; renderClasses();
+            // Classes are always created by the Headmaster now — teachers only
+            // see the class(es) they've been assigned to.
+            alert("Classes are created by your Headmaster in the Headmaster Panel. Ask them to add it and assign you.");
         }
         
         function renderClasses() {
             let list = document.getElementById("classList"); list.innerHTML = "";
             for (let cls in data) {
                 let div = document.createElement("div"); div.className = "icon-box";
-                div.innerHTML = `<span>🏫 <b>${cls}</b></span>`;
-                let del = document.createElement("button"); del.innerText = "🗑 Drop"; del.className = "deleteBtn";
-                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Erase structural node ${cls}?`)) { delete data[cls]; saveData(); renderClasses(); } };
-                div.appendChild(del);
+                let roleTag = hasFullClassAccess(cls) ? '<span class="progress-tag">🏫 Class Teacher</span>' : '<span class="progress-tag" style="background:rgba(245,158,11,.18);color:#fbbf24;">📘 Subject Teacher</span>';
+                div.innerHTML = `<span>🏫 <b>${cls}</b></span>${roleTag}`;
                 div.onclick = () => {
                     currentClass = cls; showPage("subjectPage");
                     triggerSkeletonLoader("subjectSkeleton", 450);
@@ -1366,6 +1517,7 @@
             // We still use the same data[class][subject][chapter] structure under the hood,
             // but auto-create ONE chapter with the same name as the subject, so every other
             // function (PDF, WhatsApp, search, ranking etc.) keeps working untouched.
+            if (!hasFullClassAccess(currentClass)) { alert("Only your Class Teacher or Headmaster can add subjects here."); return; }
             let name = document.getElementById("newSubject").value.trim(); if (!name) return;
             if (!data[currentClass][name]) data[currentClass][name] = {};
             if (!data[currentClass][name][name]) data[currentClass][name][name] = { students: [] };
@@ -1375,11 +1527,15 @@
         function addSubjectWithChapters() {
             // "Subject with Chapters" mode — old behaviour: subject created empty,
             // teacher adds chapters (Physics, Chemistry, Biology...) inside it afterward.
+            if (!hasFullClassAccess(currentClass)) { alert("Only your Class Teacher or Headmaster can add subjects here."); return; }
             let name = document.getElementById("newSubject").value.trim(); if (!name) return;
             if (!data[currentClass][name]) data[currentClass][name] = {}; saveData(); document.getElementById("newSubject").value = ""; renderSubjects();
         }
         
         function renderSubjects() {
+            let fullAccess = hasFullClassAccess(currentClass);
+            document.getElementById("addSubjectBox").style.display = fullAccess ? "block" : "none";
+            document.getElementById("subjectOwnedByCtNotice").style.display = fullAccess ? "none" : "block";
             let list = document.getElementById("subjectList"); list.innerHTML = "";
             for (let sub in data[currentClass]) {
                 let chapterKeys = Object.keys(data[currentClass][sub]);
@@ -1387,9 +1543,11 @@
 
                 let div = document.createElement("div"); div.className = "icon-box";
                 div.innerHTML = `<span>📘 <b>${sub}</b></span>${isDirectSubject ? '<span class="progress-tag">⚡ Direct</span>' : ''}`;
-                let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
-                del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop field ${sub}?`)) { delete data[currentClass][sub]; saveData(); renderSubjects(); } };
-                div.appendChild(del);
+                if (fullAccess) {
+                    let del = document.createElement("button"); del.innerText = "🗑"; del.className = "deleteBtn";
+                    del.onclick = (e) => { e.stopPropagation(); if(confirm(`Drop field ${sub}?`)) { delete data[currentClass][sub]; saveData(); renderSubjects(); } };
+                    div.appendChild(del);
+                }
                 div.onclick = () => {
                     currentSubject = sub;
                     if (isDirectSubject) {
@@ -2057,20 +2215,18 @@
         }
 
         window.onload = function() {
+            let autoSchool = localStorage.getItem("autoLoginSchool");
             let autoUser = localStorage.getItem("autoLoginUser");
             let autoPass = localStorage.getItem("autoLoginPass");
             
-            if (autoUser && autoPass) {
+            if (autoSchool && autoUser && autoPass) {
                 document.getElementById("cloudStatus").innerText = "🔄 Auto Login in progress...";
                 
-                db.collection("teachers_pwd").doc(autoUser).get()
-                    .then((userDoc) => {
-                        if (userDoc.exists && userDoc.data().accountPassword === autoPass) {
-                            activeCloudUser = autoUser;
-                            sessionStorage.setItem("pwdCloudUser", activeCloudUser);
-                            document.getElementById("welcomeTitle").innerText = `Welcome, ${activeCloudUser}`;
-                            setupRealtimeListener(activeCloudUser);
-                            goHome();
+                db.collection("schools").doc(autoSchool).get()
+                    .then((schoolDoc) => {
+                        let t = schoolDoc.exists ? (schoolDoc.data().teachers || {})[autoUser] : null;
+                        if (t && t.password === autoPass) {
+                            completeLogin(autoSchool, autoUser, t.name);
                         } else {
                             showPage("login");
                             document.getElementById("cloudStatus").innerText = "☁️ Session Expired";
